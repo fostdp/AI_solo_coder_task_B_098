@@ -3,6 +3,12 @@ let signalAnimations = [];
 let animationId = null;
 let isSignalDemoRunning = false;
 
+const MAX_RIPPLES = 200;
+const BATCH_BUCKET_SIZE = 0.05;
+const OFFSCREEN_MARGIN = 100;
+
+let pendingAnimations = [];
+
 function setupCanvas() {
     signalCanvas = document.getElementById('signal-canvas');
     signalCtx = signalCanvas.getContext('2d');
@@ -21,15 +27,95 @@ function drawSignals() {
 
     signalCtx.clearRect(0, 0, signalCanvas.width, signalCanvas.height);
 
-    signalAnimations = signalAnimations.filter(anim => {
-        const progress = (Date.now() - anim.startTime) / anim.duration;
-        if (progress >= 1) return false;
+    const now = Date.now();
 
-        drawSignalRipple(anim, progress);
-        return true;
+    while (pendingAnimations.length > 0 && signalAnimations.length < MAX_RIPPLES) {
+        signalAnimations.push(pendingAnimations.shift());
+    }
+
+    signalAnimations = signalAnimations.filter(anim => {
+        const progress = (now - anim.startTime) / anim.duration;
+        return progress < 1;
     });
 
-    if (signalAnimations.length > 0) {
+    const buckets = new Map();
+
+    for (let i = 0; i < signalAnimations.length; i++) {
+        const anim = signalAnimations[i];
+        const progress = (now - anim.startTime) / anim.duration;
+        if (progress >= 1) continue;
+
+        const center = map.latLngToContainerPoint([anim.lat, anim.lon]);
+        if (center.x < -OFFSCREEN_MARGIN || center.x > signalCanvas.width + OFFSCREEN_MARGIN ||
+            center.y < -OFFSCREEN_MARGIN || center.y > signalCanvas.height + OFFSCREEN_MARGIN) {
+            continue;
+        }
+
+        const maxRadius = anim.maxRadius || 150;
+        const currentRadius = maxRadius * progress;
+        const opacity = 1 - progress;
+
+        const bucketKey = Math.round(progress / BATCH_BUCKET_SIZE) * BATCH_BUCKET_SIZE;
+
+        if (!buckets.has(bucketKey)) {
+            buckets.set(bucketKey, []);
+        }
+        buckets.get(bucketKey).push({
+            x: center.x,
+            y: center.y,
+            radius: currentRadius,
+            innerRadius: currentRadius * 0.6,
+            opacity: opacity,
+            color: anim.color || '#e94560'
+        });
+    }
+
+    for (const [bucketKey, ripples] of buckets) {
+        const progress = bucketKey;
+        const opacity = 1 - progress;
+
+        signalCtx.lineWidth = 2;
+
+        signalCtx.beginPath();
+        for (let i = 0; i < ripples.length; i++) {
+            const r = ripples[i];
+            signalCtx.moveTo(r.x + r.radius, r.y);
+            signalCtx.arc(r.x, r.y, r.radius, 0, Math.PI * 2);
+        }
+        signalCtx.strokeStyle = `rgba(251, 191, 36, ${0.4 * opacity})`;
+        signalCtx.setLineDash([5, 3]);
+        signalCtx.stroke();
+        signalCtx.setLineDash([]);
+
+        signalCtx.beginPath();
+        for (let i = 0; i < ripples.length; i++) {
+            const r = ripples[i];
+            signalCtx.moveTo(r.x + r.innerRadius, r.y);
+            signalCtx.arc(r.x, r.y, r.innerRadius, 0, Math.PI * 2);
+        }
+        signalCtx.strokeStyle = `rgba(74, 222, 128, ${0.6 * opacity})`;
+        signalCtx.stroke();
+
+        signalCtx.beginPath();
+        for (let i = 0; i < ripples.length; i++) {
+            const r = ripples[i];
+            const gradient = signalCtx.createRadialGradient(
+                r.x, r.y, 0,
+                r.x, r.y, r.radius
+            );
+            gradient.addColorStop(0, `rgba(233, 69, 96, 0)`);
+            gradient.addColorStop(0.3, `rgba(233, 69, 96, ${0.3 * r.opacity})`);
+            gradient.addColorStop(0.6, `rgba(74, 222, 128, ${0.4 * r.opacity})`);
+            gradient.addColorStop(0.85, `rgba(233, 69, 96, ${0.2 * r.opacity})`);
+            gradient.addColorStop(1, `rgba(233, 69, 96, 0)`);
+            signalCtx.moveTo(r.x + r.radius, r.y);
+            signalCtx.arc(r.x, r.y, r.radius, 0, Math.PI * 2);
+            signalCtx.fillStyle = gradient;
+            signalCtx.fill();
+        }
+    }
+
+    if (signalAnimations.length > 0 || pendingAnimations.length > 0) {
         if (!animationId) {
             animationId = requestAnimationFrame(animateSignalLoop);
         }
@@ -43,51 +129,11 @@ function drawSignals() {
 
 function animateSignalLoop() {
     drawSignals();
-    if (signalAnimations.length > 0) {
+    if (signalAnimations.length > 0 || pendingAnimations.length > 0) {
         animationId = requestAnimationFrame(animateSignalLoop);
+    } else {
+        animationId = null;
     }
-}
-
-function drawSignalRipple(anim, progress) {
-    const center = map.latLngToContainerPoint([anim.lat, anim.lon]);
-    const maxRadius = anim.maxRadius || 150;
-    const currentRadius = maxRadius * progress;
-    const opacity = 1 - progress;
-
-    signalCtx.save();
-
-    const gradient = signalCtx.createRadialGradient(
-        center.x, center.y, 0,
-        center.x, center.y, currentRadius
-    );
-
-    const color = anim.color || '#e94560';
-    gradient.addColorStop(0, `rgba(233, 69, 96, 0)`);
-    gradient.addColorStop(0.3, `rgba(233, 69, 96, ${0.3 * opacity})`);
-    gradient.addColorStop(0.6, `rgba(74, 222, 128, ${0.4 * opacity})`);
-    gradient.addColorStop(0.85, `rgba(233, 69, 96, ${0.2 * opacity})`);
-    gradient.addColorStop(1, `rgba(233, 69, 96, 0)`);
-
-    signalCtx.beginPath();
-    signalCtx.arc(center.x, center.y, currentRadius, 0, Math.PI * 2);
-    signalCtx.fillStyle = gradient;
-    signalCtx.fill();
-
-    signalCtx.beginPath();
-    signalCtx.arc(center.x, center.y, currentRadius * 0.6, 0, Math.PI * 2);
-    signalCtx.strokeStyle = `rgba(74, 222, 128, ${0.6 * opacity})`;
-    signalCtx.lineWidth = 2;
-    signalCtx.stroke();
-
-    signalCtx.beginPath();
-    signalCtx.arc(center.x, center.y, currentRadius, 0, Math.PI * 2);
-    signalCtx.strokeStyle = `rgba(251, 191, 36, ${0.4 * opacity})`;
-    signalCtx.lineWidth = 1.5;
-    signalCtx.setLineDash([5, 3]);
-    signalCtx.stroke();
-    signalCtx.setLineDash([]);
-
-    signalCtx.restore();
 }
 
 function triggerSignal(fromBeaconId, toBeaconId) {
@@ -103,8 +149,8 @@ function triggerSignal(fromBeaconId, toBeaconId) {
         color: '#4ade80'
     };
 
-    signalAnimations.push(anim);
-    drawSignals();
+    pendingAnimations.push(anim);
+    if (!animationId) drawSignals();
 
     setTimeout(() => {
         const toBeacon = beaconsData.find(b => b.id === toBeaconId);
@@ -117,8 +163,8 @@ function triggerSignal(fromBeaconId, toBeaconId) {
                 maxRadius: 180,
                 color: '#e94560'
             };
-            signalAnimations.push(relayAnim);
-            drawSignals();
+            pendingAnimations.push(relayAnim);
+            if (!animationId) drawSignals();
         }
     }, 800);
 }
@@ -152,8 +198,8 @@ function startSignalDemo() {
             color: '#fbbf24'
         };
 
-        signalAnimations.push(anim);
-        drawSignals();
+        pendingAnimations.push(anim);
+        if (!animationId) drawSignals();
 
         currentIndex = nextIndex;
     }, 1000);
@@ -227,11 +273,11 @@ function broadcastSignal(beaconId) {
                 maxRadius: 100 + i * 40,
                 color: '#4ade80'
             };
-            signalAnimations.push(anim);
+            pendingAnimations.push(anim);
         }, i * 200);
     }
 
-    setTimeout(() => drawSignals(), 50);
+    if (!animationId) setTimeout(() => drawSignals(), 50);
 }
 
 window.triggerSignal = triggerSignal;

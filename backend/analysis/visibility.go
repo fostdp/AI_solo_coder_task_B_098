@@ -6,9 +6,16 @@ import (
 )
 
 const (
-	EarthRadius        = 6371.0
-	EarthCurvatureCoef = 0.0
+	EarthRadius = 6371.0
+
+	EffectiveEarthFactorK = 4.0 / 3.0
+
+	RefractionGradient = -40e-6
 )
+
+func EffectiveEarthRadius() float64 {
+	return EarthRadius * EffectiveEarthFactorK
+}
 
 func HaversineDistance(lat1, lon1, lat2, lon2 float64) float64 {
 	dLat := (lat2 - lat1) * math.Pi / 180.0
@@ -35,14 +42,44 @@ func EarthCurvatureDrop(distanceKm float64) float64 {
 	return math.Pow(distanceKm, 2) * 1000 / (2 * EarthRadius * 1000) * 1000
 }
 
+func ITURRefractedCurvatureDrop(distanceKm float64) float64 {
+	ae := EffectiveEarthRadius() * 1000
+	dMeters := distanceKm * 1000
+	return (dMeters * dMeters) / (2 * ae)
+}
+
+func ITURRefractedHorizonDistance(heightMeters float64) float64 {
+	ae := EffectiveEarthRadius() * 1000
+	return math.Sqrt(2*ae*heightMeters) / 1000
+}
+
+func ITURRefractedLineOfSightHeight(distanceKm, observerHeightM float64) float64 {
+	ae := EffectiveEarthRadius() * 1000
+	dMeters := distanceKm * 1000
+	return observerHeightM - (dMeters*dMeters)/(2*ae)
+}
+
+func ITURProfileHeight(distanceKm, observerHeightM, targetHeightM, totalDistKm float64) float64 {
+	if totalDistKm <= 0 {
+		return observerHeightM
+	}
+	ratio := distanceKm / totalDistKm
+	linearHeight := observerHeightM + ratio*(targetHeightM-observerHeightM)
+	ae := EffectiveEarthRadius() * 1000
+	dMeters := distanceKm * 1000
+	curvatureDrop := (dMeters * dMeters) / (2 * ae)
+	return linearHeight - curvatureDrop
+}
+
 func LineOfSightHeight(distanceKm, observerHeight float64) float64 {
-	return observerHeight - EarthCurvatureDrop(distanceKm)
+	return ITURRefractedLineOfSightHeight(distanceKm, observerHeight)
 }
 
 func CalculateVisibility(fromBeacon, toBeacon *models.Beacon, demPoints []models.DEMPoint) models.VisibilityAnalysis {
 	distanceKm := HaversineDistance(fromBeacon.Lat, fromBeacon.Lon, toBeacon.Lat, toBeacon.Lon)
 	bearing := CalculateBearing(fromBeacon.Lat, fromBeacon.Lon, toBeacon.Lat, toBeacon.Lon)
-	earthDrop := EarthCurvatureDrop(distanceKm)
+
+	refractedDrop := ITURRefractedCurvatureDrop(distanceKm)
 
 	fromEyeHeight := fromBeacon.Elevation + fromBeacon.Height
 	toEyeHeight := toBeacon.Elevation + toBeacon.Height
@@ -53,24 +90,30 @@ func CalculateVisibility(fromBeacon, toBeacon *models.Beacon, demPoints []models
 	visibilityAngle := 0.0
 
 	if len(demPoints) > 0 {
-		maxTerrainElev = findMaxTerrainElevation(demPoints)
-		lineOfSightAtMaxTerrain := calculateLineOfSightAtPoint(
-			fromBeacon, toBeacon, maxTerrainElev, demPoints,
+		minClearance, maxTerrainElev = checkDEMProfileWithRefraction(
+			fromBeacon, toBeacon, demPoints, distanceKm,
 		)
-		minClearance = lineOfSightAtMaxTerrain - maxTerrainElev
 		isVisible = minClearance > 0
 	} else {
-		horizonDistanceFrom := math.Sqrt(2 * EarthRadius * 1000 * fromEyeHeight / 1000)
-		horizonDistanceTo := math.Sqrt(2 * EarthRadius * 1000 * toEyeHeight / 1000)
-		totalHorizonKm := (horizonDistanceFrom + horizonDistanceTo) / 1000
+		horizonFromKm := ITURRefractedHorizonDistance(fromEyeHeight)
+		horizonToKm := ITURRefractedHorizonDistance(toEyeHeight)
+		totalHorizonKm := horizonFromKm + horizonToKm
 		isVisible = distanceKm <= totalHorizonKm
-		minClearance = fromEyeHeight - earthDrop
+
+		if isVisible {
+			midProfileHeight := ITURProfileHeight(distanceKm/2, fromEyeHeight, toEyeHeight, distanceKm)
+			minClearance = midProfileHeight
+		} else {
+			midProfileHeight := ITURProfileHeight(distanceKm/2, fromEyeHeight, toEyeHeight, distanceKm)
+			minClearance = midProfileHeight
+		}
+
 		if !isVisible {
-			minClearance = -math.Abs(minClearance - toEyeHeight)
+			minClearance = -math.Abs(minClearance)
 		}
 	}
 
-	elevDiff := (toBeacon.Elevation + toBeacon.Height) - (fromBeacon.Elevation + fromBeacon.Height)
+	elevDiff := toEyeHeight - fromEyeHeight
 	visibilityAngle = math.Atan2(elevDiff, distanceKm*1000) * 180.0 / math.Pi
 
 	return models.VisibilityAnalysis{
@@ -79,49 +122,43 @@ func CalculateVisibility(fromBeacon, toBeacon *models.Beacon, demPoints []models
 		IsVisible:           isVisible,
 		DistanceKm:          distanceKm,
 		Bearing:             bearing,
-		EarthCurvatureDrop:  earthDrop,
+		EarthCurvatureDrop:  refractedDrop,
 		MinClearance:        minClearance,
 		MaxTerrainElevation: maxTerrainElev,
 		VisibilityAngle:     visibilityAngle,
-		CalculationMethod:   "dem_line_of_sight",
+		CalculationMethod:   "itu_r_refracted_los",
 	}
 }
 
-func findMaxTerrainElevation(demPoints []models.DEMPoint) float64 {
-	maxElev := -math.MaxFloat64
+func checkDEMProfileWithRefraction(from, to *models.Beacon, demPoints []models.DEMPoint, totalDistKm float64) (float64, float64) {
+	fromEyeHeight := from.Elevation + from.Height
+	toEyeHeight := to.Elevation + to.Height
+
+	maxTerrainElev := -math.MaxFloat64
+	minClearance := math.MaxFloat64
+
 	for _, p := range demPoints {
-		if p.Elevation > maxElev {
-			maxElev = p.Elevation
+		if p.Elevation > maxTerrainElev {
+			maxTerrainElev = p.Elevation
 		}
-	}
-	return maxElev
-}
 
-func calculateLineOfSightAtPoint(from, to *models.Beacon, terrainElev float64, demPoints []models.DEMPoint) float64 {
-	fromHeight := from.Elevation + from.Height
-	toHeight := to.Elevation + to.Height
-
-	totalDist := HaversineDistance(from.Lat, from.Lon, to.Lat, to.Lon)
-
-	minRatio := 1.0
-	for _, p := range demPoints {
 		distFrom := HaversineDistance(from.Lat, from.Lon, p.Lat, p.Lon)
-		ratio := distFrom / totalDist
-		if ratio > 0 && ratio < 1 {
-			curvatureDrop := EarthCurvatureDrop(distFrom)
-			lineHeight := fromHeight + ratio*(toHeight-fromHeight) - curvatureDrop
-			clearance := lineHeight - p.Elevation
-			if clearance/p.Elevation < minRatio {
-				minRatio = clearance / p.Elevation
+		ratio := distFrom / totalDistKm
+		if ratio > 0.01 && ratio < 0.99 {
+			profileHeight := ITURProfileHeight(distFrom, fromEyeHeight, toEyeHeight, totalDistKm)
+			clearance := profileHeight - p.Elevation
+			if clearance < minClearance {
+				minClearance = clearance
 			}
 		}
 	}
 
-	midDist := totalDist / 2
-	midCurvature := EarthCurvatureDrop(midDist)
-	midLineHeight := fromHeight + 0.5*(toHeight-fromHeight) - midCurvature
+	if minClearance == math.MaxFloat64 {
+		midProfileHeight := ITURProfileHeight(totalDistKm/2, fromEyeHeight, toEyeHeight, totalDistKm)
+		minClearance = midProfileHeight - maxTerrainElev
+	}
 
-	return midLineHeight
+	return minClearance, maxTerrainElev
 }
 
 func CalculateViewShedSector(beacon *models.Beacon, azimuthStart, azimuthEnd, maxDistanceKm float64) [][2]float64 {

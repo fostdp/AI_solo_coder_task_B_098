@@ -60,8 +60,9 @@ func AnalyzeReliability(c *gin.Context) {
 	}
 
 	config := analysis.MonteCarloConfig{
-		Iterations:    iterations,
-		WeatherFactor: weatherFactor,
+		Iterations:            iterations,
+		WeatherFactor:         weatherFactor,
+		UseImportanceSampling: true,
 	}
 
 	result := analysis.MonteCarloReliability(graph, config)
