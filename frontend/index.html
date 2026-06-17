@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>古代烽火台视线分析与通信网络可靠性仿真系统</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+    <div id="app">
+        <header class="header">
+            <h1>🏯 汉代河西走廊烽火台仿真系统</h1>
+            <div class="header-info">
+                <span id="system-status">
+                    <span class="status-dot status-ok"></span>
+                    系统运行中
+                </span>
+                <span id="current-time"></span>
+            </div>
+        </header>
+
+        <div class="main-container">
+            <aside class="sidebar">
+                <div class="panel">
+                    <h3>📊 网络状态</h3>
+                    <div class="stat-grid">
+                        <div class="stat-item">
+                        <span class="stat-label">烽火台数量</span>
+                        <span class="stat-value" id="beacon-count">--</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">连通度</span>
+                        <span class="stat-value" id="connectivity-index">--</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">可靠性</span>
+                        <span class="stat-value" id="reliability-value">--</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">告警数</span>
+                        <span class="stat-value alert-value" id="alert-count">--</span>
+                    </div>
+                </div>
+                </div>
+
+                <div class="panel">
+                    <h3>🌤️ 天气模拟</h3>
+                    <div class="control-group">
+                        <label>天气状况</label>
+                        <select id="weather-select">
+                            <option value="1.0">晴朗</option>
+                            <option value="0.8">轻雾</option>
+                            <option value="0.6">大雾</option>
+                            <option value="0.4">浓雾</option>
+                            <option value="0.2">沙尘暴</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label>蒙特卡洛迭代次数</label>
+                        <input type="range" id="iterations-slider" min="100" max="5000" value="1000" step="100">
+                        <span id="iterations-value">1000</span>
+                    </div>
+                    <button class="btn btn-primary" id="analyze-btn">
+                        运行可靠性分析
+                    </button>
+                </div>
+
+                <div class="panel">
+                    <h3>👁️ 视线分析</h3>
+                    <div class="control-group">
+                        <label>选择起点烽火台</label>
+                        <select id="from-beacon-select">
+                            <option value="">请选择</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label>视域范围 (km</label>
+                        <input type="range" id="viewshed-distance" min="5" max="50" value="20" step="1">
+                        <span id="viewshed-value">20 km</span>
+                    </div>
+                    <button class="btn btn-secondary" id="show-viewshed-btn">
+                        显示视域扇形
+                    </button>
+                    <button class="btn btn-outline" id="clear-viewshed-btn">
+                        清除视域
+                    </button>
+                </div>
+
+                <div class="panel">
+                    <h3>🔗 链路信息</h3>
+                    <div id="link-info" class="link-info">
+                        <p class="text-muted">点击烽火台查看详情</p>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <h3>🔔 最近告警</h3>
+                    <div id="alert-list" class="alert-list">
+                        <p class="text-muted">暂无告警</p>
+                    </div>
+                </div>
+            </aside>
+
+            <main class="map-container">
+                <div id="map"></div>
+                <canvas id="signal-canvas"></canvas>
+                <div class="map-controls">
+                    <button class="map-btn" id="toggle-links-btn" title="切换链路显示">
+                        🔗 链路
+                    </button>
+                    <button class="map-btn" id="toggle-labels-btn" title="切换标签">
+                        🏷️ 标签
+                    </button>
+                    <button class="map-btn" id="signal-demo-btn" title="信号传播演示">
+                        📡 信号演示
+                    </button>
+                    <button class="map-btn" id="refresh-btn" title="刷新数据">
+                        🔄 刷新
+                    </button>
+                </div>
+                <div class="map-legend">
+                    <h4>图例</h4>
+                    <div class="legend-item">
+                        <span class="legend-marker beacon-normal"></span>
+                        <span>正常烽火台</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-marker beacon-critical"></span>
+                        <span>关键节点</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-line line-visible"></span>
+                        <span>可见链路</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-line line-faded"></span>
+                        <span>弱链路</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-fill viewshed-fill"></span>
+                        <span>视域范围</span>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="js/map.js"></script>
+    <script src="js/visibility.js"></script>
+    <script src="js/signal.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
