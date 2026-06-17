@@ -1,0 +1,97 @@
+version: "3.8"
+
+services:
+  postgres:
+    build:
+      context: ./database
+      dockerfile: Dockerfile
+    container_name: beacon-postgres
+    environment:
+      POSTGRES_DB: beacon_system
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/01-init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d beacon_system"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+  mqtt-broker:
+    image: eclipse-mosquitto:2.0.18
+    container_name: beacon-mqtt
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./mqtt/config:/mosquitto/config
+      - mqttdata:/mosquitto/data
+      - mqttlog:/mosquitto/log
+    restart: unless-stopped
+
+  beacon-server:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: beacon-server
+    environment:
+      SERVER_PORT: "8080"
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_USER: postgres
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      DB_NAME: beacon_system
+      MQTT_BROKER: mqtt-broker
+      MQTT_PORT: "1883"
+      MQTT_USER: ""
+      MQTT_PASS: ""
+      MQTT_TOPIC: beacon/alerts
+      CONNECTIVITY_THRESHOLD: "0.7"
+      DEMO_MODE: "false"
+    ports:
+      - "8080:8080"
+      - "6060:6060"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mqtt-broker:
+        condition: service_started
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: beacon-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - beacon-server
+    restart: unless-stopped
+
+  simulator:
+    build:
+      context: ./simulator
+      dockerfile: Dockerfile
+    container_name: beacon-simulator
+    environment:
+      API_BASE: http://beacon-server:8080/api
+      INTERVAL: ${SIM_INTERVAL:-60}
+      WEATHER: ${SIM_WEATHER:-auto}
+      VISIBILITY: ${SIM_VISIBILITY:-}
+    depends_on:
+      - beacon-server
+    restart: unless-stopped
+    profiles:
+      - simulator
+
+volumes:
+  pgdata:
+  mqttdata:
+  mqttlog:

@@ -310,3 +310,31 @@ COMMENT ON TABLE sensor_data IS '传感器实时数据表';
 COMMENT ON TABLE visibility_analysis IS '视线分析结果表';
 COMMENT ON TABLE reliability_analysis IS '网络可靠性分析结果表';
 COMMENT ON TABLE alerts IS '告警记录表';
+
+-- ============================================================
+-- 13. 空间索引优化和统计信息
+-- ============================================================
+
+ANALYZE beacons;
+ANALYZE dem_data;
+ANALYZE view_sheds;
+
+CLUSTER beacons USING idx_beacons_location;
+CLUSTER dem_data USING idx_dem_data_geom;
+CLUSTER view_sheds USING idx_viewsheds_geom;
+
+ALTER TABLE dem_data CLUSTER ON idx_dem_data_geom;
+ALTER TABLE view_sheds CLUSTER ON idx_viewsheds_geom;
+
+SET work_mem = '256MB';
+SET maintenance_work_mem = '512MB';
+
+VACUUM ANALYZE beacons;
+VACUUM ANALYZE dem_data;
+VACUUM ANALYZE sensor_data;
+VACUUM ANALYZE signal_reception;
+VACUUM ANALYZE visibility_analysis;
+VACUUM ANALYZE network_links;
+VACUUM ANALYZE reliability_analysis;
+VACUUM ANALYZE alerts;
+VACUUM ANALYZE view_sheds;
