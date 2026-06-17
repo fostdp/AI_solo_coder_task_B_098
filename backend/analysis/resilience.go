@@ -21,12 +21,12 @@ type ResilienceCurvePoint struct {
 }
 
 type ResilienceResult struct {
-	AttackType       string
-	CurvePoints      []ResilienceCurvePoint
-	RobustnessScore  float64
+	AttackType        string
+	CurvePoints       []ResilienceCurvePoint
+	RobustnessScore   float64
 	CriticalThreshold float64
-	TotalNodes       int
-	Iterations       int
+	TotalNodes        int
+	Iterations        int
 }
 
 func AnalyzeResilience(graph *Graph, attackType string, steps int, iterations int) *ResilienceResult {
@@ -38,6 +38,16 @@ func AnalyzeResilience(graph *Graph, attackType string, steps int, iterations in
 	}
 
 	totalNodes := len(graph.Nodes)
+	if totalNodes == 0 {
+		return &ResilienceResult{
+			AttackType:        attackType,
+			CurvePoints:       []ResilienceCurvePoint{{RemovalRatio: 0.0, ConnectivityIndex: 0.0, GiantComponentPct: 0.0}},
+			RobustnessScore:   0.0,
+			CriticalThreshold: 0.0,
+			TotalNodes:        0,
+			Iterations:        iterations,
+		}
+	}
 	curve := make([]ResilienceCurvePoint, steps+1)
 	curve[0] = ResilienceCurvePoint{
 		RemovalRatio:      0.0,
@@ -90,12 +100,12 @@ func AnalyzeResilience(graph *Graph, attackType string, steps int, iterations in
 	criticalThreshold := findCriticalThreshold(curve)
 
 	return &ResilienceResult{
-		AttackType:       attackType,
-		CurvePoints:      curve,
-		RobustnessScore:  robustnessScore,
+		AttackType:        attackType,
+		CurvePoints:       curve,
+		RobustnessScore:   robustnessScore,
 		CriticalThreshold: criticalThreshold,
-		TotalNodes:       totalNodes,
-		Iterations:       iterations,
+		TotalNodes:        totalNodes,
+		Iterations:        iterations,
 	}
 }
 
@@ -245,7 +255,7 @@ func removeNodes(graph *Graph, removeIDs []int) *Graph {
 
 	for _, edge := range graph.Edges {
 		if !removeSet[edge.From] && !removeSet[edge.To] {
-			newGraph.AddEdge(edge)
+			newGraph.Edges = append(newGraph.Edges, edge)
 		}
 	}
 

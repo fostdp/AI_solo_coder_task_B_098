@@ -6,10 +6,11 @@ import (
 	"errors"
 	"log"
 
-	"github.com/jmoiron/sqlx"
 	"beacon-system/analysis"
 	"beacon-system/models"
 	"beacon-system/modules/eventbus"
+
+	"github.com/jmoiron/sqlx"
 )
 
 type AdvancedAnalyzer struct {
@@ -93,13 +94,13 @@ func (a *AdvancedAnalyzer) getDynastyMetrics(dynastyCode string) (*models.Dynast
 	graph := a.buildGraphFromTopology(topoID)
 	if graph == nil || len(graph.Nodes) == 0 {
 		return &models.DynastyComparison{
-			DynastyCode:   dynastyCode,
-			DynastyName:   dynasty.Name,
-			Color:         dynasty.Color,
-			NodeCount:     nodeCount,
-			LinkCount:     linkCount,
+			DynastyCode:    dynastyCode,
+			DynastyName:    dynasty.Name,
+			Color:          dynasty.Color,
+			NodeCount:      nodeCount,
+			LinkCount:      linkCount,
 			AvgReliability: avgReliability,
-			TopologyID:    topoID,
+			TopologyID:     topoID,
 		}, nil
 	}
 
@@ -124,18 +125,18 @@ func (a *AdvancedAnalyzer) getDynastyMetrics(dynastyCode string) (*models.Dynast
 	}
 
 	return &models.DynastyComparison{
-		DynastyCode:    dynastyCode,
-		DynastyName:    dynasty.Name,
-		Color:          dynasty.Color,
-		NodeCount:      len(graph.Nodes),
-		LinkCount:      len(graph.Edges),
+		DynastyCode:     dynastyCode,
+		DynastyName:     dynasty.Name,
+		Color:           dynasty.Color,
+		NodeCount:       len(graph.Nodes),
+		LinkCount:       len(graph.Edges),
 		ConnectivityIdx: connIdx,
-		AvgPathLength:  avgPath,
-		Diameter:       diameter,
-		Density:        density,
-		Reliability:    reliability,
-		AvgReliability: avgReliability,
-		TopologyID:     topoID,
+		AvgPathLength:   avgPath,
+		Diameter:        diameter,
+		Density:         density,
+		Reliability:     reliability,
+		AvgReliability:  avgReliability,
+		TopologyID:      topoID,
 	}, nil
 }
 
@@ -157,13 +158,13 @@ func (a *AdvancedAnalyzer) CrossEraComparison(topologyID int) (*models.CrossEraC
 	modernStats := a.getModernNetworkStats()
 
 	comparison := map[string]interface{}{
-		"node_count_ratio":     float64(modernStats["node_count"].(int)) / float64(max(1, beaconStats["node_count"].(int))),
-		"coverage_ratio":       modernStats["total_coverage_km2"].(float64) / max(1.0, beaconStats["total_coverage_km2"].(float64)),
-		"capacity_ratio":       modernStats["total_capacity_mbps"].(float64) / max(1.0, beaconStats["total_capacity_mbps"].(float64)),
-		"latency_ratio_ms":     beaconStats["avg_latency_ms"].(float64) / max(1.0, modernStats["avg_latency_ms"].(float64)),
-		"power_ratio_kw":       modernStats["total_power_kw"].(float64) / max(1.0, beaconStats["total_power_kw"].(float64)),
-		"era_gap_years":        2200,
-		"tech_paradigm":        "visual-signal-vs-electromagnetic",
+		"node_count_ratio": float64(modernStats["node_count"].(int)) / float64(max(1, beaconStats["node_count"].(int))),
+		"coverage_ratio":   modernStats["total_coverage_km2"].(float64) / maxF(1.0, beaconStats["total_coverage_km2"].(float64)),
+		"capacity_ratio":   modernStats["total_capacity_mbps"].(float64) / maxF(1.0, beaconStats["total_capacity_mbps"].(float64)),
+		"latency_ratio_ms": beaconStats["avg_latency_ms"].(float64) / maxF(1.0, modernStats["avg_latency_ms"].(float64)),
+		"power_ratio_kw":   modernStats["total_power_kw"].(float64) / maxF(1.0, beaconStats["total_power_kw"].(float64)),
+		"era_gap_years":    2200,
+		"tech_paradigm":    "visual-signal-vs-electromagnetic",
 	}
 
 	return &models.CrossEraComparison{
@@ -204,16 +205,16 @@ func (a *AdvancedAnalyzer) getBeaconNetworkStats(topologyID int) map[string]inte
 	}
 
 	return map[string]interface{}{
-		"type":                   "beacon",
-		"node_count":             nodeCount,
-		"link_count":             linkCount,
-		"total_coverage_km2":     totalCoverage,
-		"total_capacity_mbps":    float64(nodeCount) * 0.001,
-		"avg_latency_ms":         avgLatency,
-		"total_power_kw":         float64(nodeCount) * 0.0,
-		"transmission_medium":    "visible_light_smoke",
-		"typical_speed_kmh":      0,
-		"era":                    "ancient",
+		"type":                "beacon",
+		"node_count":          nodeCount,
+		"link_count":          linkCount,
+		"total_coverage_km2":  totalCoverage,
+		"total_capacity_mbps": float64(nodeCount) * 0.001,
+		"avg_latency_ms":      avgLatency,
+		"total_power_kw":      float64(nodeCount) * 0.0,
+		"transmission_medium": "visible_light_smoke",
+		"typical_speed_kmh":   0,
+		"era":                 "ancient",
 	}
 }
 
@@ -237,15 +238,15 @@ func (a *AdvancedAnalyzer) getModernNetworkStats() map[string]interface{} {
 	}
 
 	return map[string]interface{}{
-		"type":                 "modern",
-		"node_count":           nodeCount,
-		"total_coverage_km2":   totalCoverage,
-		"total_capacity_mbps":  totalCapacity,
-		"avg_latency_ms":       avgLatency,
-		"total_power_kw":       totalPower,
-		"transmission_medium":  "radio_wave_optical",
-		"typical_speed_kmh":    1080000000,
-		"era":                  "modern",
+		"type":                "modern",
+		"node_count":          nodeCount,
+		"total_coverage_km2":  totalCoverage,
+		"total_capacity_mbps": totalCapacity,
+		"avg_latency_ms":      avgLatency,
+		"total_power_kw":      totalPower,
+		"transmission_medium": "radio_wave_optical",
+		"typical_speed_kmh":   1080000000,
+		"era":                 "modern",
 	}
 }
 
@@ -258,11 +259,11 @@ func (a *AdvancedAnalyzer) AnalyzeResilience(topologyID int, attackType string, 
 	result := analysis.AnalyzeResilience(graph, attackType, steps, iterations)
 
 	resp := &models.ResilienceResult{
-		AttackType:       result.AttackType,
-		RobustnessScore:  result.RobustnessScore,
+		AttackType:        result.AttackType,
+		RobustnessScore:   result.RobustnessScore,
 		CriticalThreshold: result.CriticalThreshold,
-		TotalNodes:       result.TotalNodes,
-		Iterations:       result.Iterations,
+		TotalNodes:        result.TotalNodes,
+		Iterations:        result.Iterations,
 	}
 	resp.CurvePoints = make([]models.ResilienceCurvePoint, len(result.CurvePoints))
 	for i, p := range result.CurvePoints {
@@ -334,12 +335,15 @@ func (a *AdvancedAnalyzer) IgniteBeacon(beaconID int, topologyID int, sessionID 
 	go a.saveIgnitionRecord(result, sessionID, userNote)
 
 	if a.eventBus != nil {
-		a.eventBus.Publish(eventbus.EventBeaconIgnited, eventbus.EventData{
-			"beacon_id":      beaconID,
-			"topology_id":    topologyID,
-			"session_id":     sessionID,
-			"reached_count":  propResult.ReachedCount,
-			"total_time_ms":  propResult.TotalTimeMs,
+		a.eventBus.Publish(eventbus.Event{
+			Type: eventbus.EventBeaconIgnited,
+			Payload: map[string]interface{}{
+				"beacon_id":     beaconID,
+				"topology_id":   topologyID,
+				"session_id":    sessionID,
+				"reached_count": propResult.ReachedCount,
+				"total_time_ms": propResult.TotalTimeMs,
+			},
 		})
 	}
 
