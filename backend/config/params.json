@@ -1,0 +1,66 @@
+{
+  "terrain": {
+    "dem_resolution_meters": 30,
+    "dem_search_radius_meters": 5000,
+    "default_terrain_elevation_meters": 1200,
+    "terrain_clearance_threshold_meters": 5.0,
+    "max_analysis_distance_km": 100,
+    "min_analysis_distance_km": 0.5
+  },
+  "atmosphere": {
+    "itu_r_effective_earth_factor_k": 1.3333333333,
+    "refraction_gradient_n_units_per_km": -40,
+    "standard_temperature_kelvin": 288.15,
+    "standard_pressure_hpa": 1013.25,
+    "standard_humidity_percent": 60.0,
+    "temperature_lapse_rate_k_per_km": -6.5,
+    "refraction_models": {
+      "standard": {
+        "k_factor": 1.333,
+        "description": "ITU-R P.528 标准大气"
+      },
+      "sub_refractive": {
+        "k_factor": 1.0,
+        "description": "亚折射 (几何直视)"
+      },
+      "super_refractive": {
+        "k_factor": 1.6,
+        "description": "超折射"
+      },
+      "ducting": {
+        "k_factor": 2.0,
+        "description": "大气波导"
+      }
+    },
+    "default_refraction_model": "standard"
+  },
+  "visibility": {
+    "viewshed_azimuth_steps": 36,
+    "default_viewshed_distance_km": 20,
+    "min_viewshed_distance_km": 5,
+    "max_viewshed_distance_km": 50,
+    "bearing_tolerance_degrees": 1.0
+  },
+  "reliability": {
+    "default_monte_carlo_iterations": 1000,
+    "max_monte_carlo_iterations": 100000,
+    "importance_sampling_edge_threshold": 20,
+    "importance_sampling_bias_factor": 2.0,
+    "confidence_level": 0.95,
+    "critical_link_sensitivity_threshold": 0.1,
+    "connectivity_warning_threshold": 0.7
+  },
+  "weather": {
+    "visibility_factors": {
+      "clear": 1.0,
+      "light_haze": 0.8,
+      "foggy": 0.6,
+      "heavy_fog": 0.4,
+      "sandstorm": 0.2
+    },
+    "wind_speed_threshold_mps": 5.0,
+    "max_wind_penalty_factor": 0.5,
+    "visibility_threshold_km": 20.0,
+    "min_visibility_factor": 0.1
+  }
+}

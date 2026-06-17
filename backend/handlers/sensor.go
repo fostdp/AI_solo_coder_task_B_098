@@ -3,12 +3,18 @@ package handlers
 import (
 	"beacon-system/database"
 	"beacon-system/models"
+	dtu "beacon-system/modules/dtu_receiver"
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/gin-gonic/gin"
 )
+
+var dtuReceiver *dtu.DTUReceiver
+
+func InitDTUReceiver(r *dtu.DTUReceiver) {
+	dtuReceiver = r
+}
 
 func GetSensorData(c *gin.Context) {
 	beaconIDStr := c.Query("beacon_id")
@@ -57,25 +63,14 @@ func PostSensorData(c *gin.Context) {
 		return
 	}
 
-	if input.Timestamp.IsZero() {
-		input.Timestamp = time.Now()
+	if dtuReceiver == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "DTU receiver not initialized"})
+		return
 	}
 
-	var id int64
-	query := `
-		INSERT INTO sensor_data (beacon_id, timestamp, visibility, wind_speed, wind_direction, temperature, humidity, terrain_elevation)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-		RETURNING id
-	`
-
-	err := database.DB.Get(&id, query,
-		input.BeaconID, input.Timestamp,
-		input.Visibility, input.WindSpeed,
-		input.WindDirection, input.Temperature,
-		input.Humidity, input.TerrainElevation,
-	)
+	id, err := dtuReceiver.ProcessSensorData(&input)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -148,24 +143,14 @@ func PostSignalReception(c *gin.Context) {
 		return
 	}
 
-	if input.Timestamp.IsZero() {
-		input.Timestamp = time.Now()
+	if dtuReceiver == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "DTU receiver not initialized"})
+		return
 	}
 
-	var id int64
-	query := `
-		INSERT INTO signal_reception (from_beacon_id, to_beacon_id, timestamp, signal_strength, is_received, interference_level, weather_factor)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
-		RETURNING id
-	`
-
-	err := database.DB.Get(&id, query,
-		input.FromBeaconID, input.ToBeaconID, input.Timestamp,
-		input.SignalStrength, input.IsReceived,
-		input.InterferenceLevel, input.WeatherFactor,
-	)
+	id, err := dtuReceiver.ProcessSignalReception(&input)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
