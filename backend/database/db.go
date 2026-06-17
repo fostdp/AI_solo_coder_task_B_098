@@ -30,6 +30,10 @@ func Init(cfg *config.Config) error {
 	return nil
 }
 
+func GetDB() *sqlx.DB {
+	return DB
+}
+
 func Close() {
 	if DB != nil {
 		DB.Close()

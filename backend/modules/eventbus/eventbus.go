@@ -12,8 +12,11 @@ const (
 	EventSignalReceptionReceived EventType = "signal_reception_received"
 	EventVisibilityCalculated    EventType = "visibility_calculated"
 	EventReliabilityAnalyzed     EventType = "reliability_analyzed"
-	EventAlertTriggered          EventType = "alert_triggered"
 	EventConnectivityCheck       EventType = "connectivity_check"
+	EventAlertTriggered          EventType = "alert_triggered"
+	EventBeaconIgnited           EventType = "beacon_ignited"
+	EventResilienceAnalyzed      EventType = "resilience_analyzed"
+	EventDynastyCompared         EventType = "dynasty_compared"
 )
 
 type Event struct {

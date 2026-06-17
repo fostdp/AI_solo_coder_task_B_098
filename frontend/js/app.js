@@ -6,6 +6,17 @@ function initApp() {
     setupMapControls();
     setupAnalysisControls();
     setupRefreshButton();
+    initAdvancedFeatures();
+}
+
+function initAdvancedFeatures() {
+    if (typeof AdvancedFeatures !== 'undefined' && typeof map !== 'undefined') {
+        const beaconMapWrapper = {
+            beacons: beaconsData,
+            markers: beaconMarkers
+        };
+        window.advancedFeatures = new AdvancedFeatures(map, beaconMapWrapper);
+    }
 }
 
 function setupMapControls() {

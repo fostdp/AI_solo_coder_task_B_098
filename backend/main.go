@@ -5,6 +5,7 @@ import (
 	"beacon-system/database"
 	"beacon-system/handlers"
 	"beacon-system/metrics"
+	"beacon-system/modules/advanced_analysis"
 	"beacon-system/modules/alarm_mqtt"
 	"beacon-system/modules/dtu_receiver"
 	"beacon-system/modules/eventbus"
@@ -56,6 +57,7 @@ func main() {
 	visibilityAnalyzer := visibility_analyzer.New(cfg)
 	networkAnalyzer := network_reliability_analyzer.New(cfg)
 	alarmModule := alarm_mqtt.New(cfg, mqttClient)
+	advancedAnalyzer := advanced_analysis.NewAdvancedAnalyzer(database.GetDB(), eventbus.Get())
 
 	dtuReceiver.Start()
 	visibilityAnalyzer.Start()
@@ -67,8 +69,9 @@ func main() {
 	handlers.InitVisibilityAnalyzer(visibilityAnalyzer)
 	handlers.InitNetworkModules(networkAnalyzer, alarmModule)
 	handlers.InitHandlers()
+	advancedHandler := handlers.NewAdvancedHandler(advancedAnalyzer)
 
-	log.Println("[Init] All modules initialized: dtu_receiver, visibility_analyzer, network_reliability_analyzer, alarm_mqtt")
+	log.Println("[Init] All modules initialized: dtu_receiver, visibility_analyzer, network_reliability_analyzer, alarm_mqtt, advanced_analysis")
 	if params != nil {
 		log.Printf("[Init] Params loaded: DEM radius=%dm, ITU-R k=%.3f, MC iterations=%d, IS edge threshold=%d",
 			int(params.Terrain.DEMSearchRadiusMeters),
@@ -121,6 +124,8 @@ func main() {
 
 		api.GET("/alerts", handlers.GetAlerts)
 		api.PUT("/alerts/:id/resolve", handlers.ResolveAlert)
+
+		advancedHandler.RegisterRoutes(api)
 	}
 
 	r.GET("/health", func(c *gin.Context) {
@@ -129,7 +134,7 @@ func main() {
 			"service":    "beacon-visibility-analysis-system",
 			"version":    Version,
 			"build_time": BuildTime,
-			"modules":    []string{"dtu_receiver", "visibility_analyzer", "network_reliability_analyzer", "alarm_mqtt"},
+			"modules":    []string{"dtu_receiver", "visibility_analyzer", "network_reliability_analyzer", "alarm_mqtt", "advanced_analysis"},
 		})
 	})
 

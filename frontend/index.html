@@ -10,7 +10,7 @@
 <body>
     <div id="app">
         <header class="header">
-            <h1>🏯 汉代河西走廊烽火台仿真系统</h1>
+            <h1>🏯 古代烽火台通信网络仿真系统</h1>
             <div class="header-info">
                 <span id="system-status">
                     <span class="status-dot status-ok"></span>
@@ -100,6 +100,127 @@
                         <p class="text-muted">暂无告警</p>
                     </div>
                 </div>
+
+                <div class="panel">
+                    <h3 class="panel-toggle" data-toggle="dynasty-panel">
+                        🏛️ 朝代对比 <span class="toggle-icon">▼</span>
+                    </h3>
+                    <div id="dynasty-panel" class="panel-content collapsed">
+                        <div class="control-group">
+                            <label>对比朝代</label>
+                            <div class="checkbox-group">
+                                <label class="checkbox-item">
+                                    <input type="checkbox" value="qin" checked> 秦代
+                                </label>
+                                <label class="checkbox-item">
+                                    <input type="checkbox" value="han" checked> 汉代
+                                </label>
+                                <label class="checkbox-item">
+                                    <input type="checkbox" value="ming" checked> 明代
+                                </label>
+                            </div>
+                        </div>
+                        <button class="btn btn-primary" id="compare-dynasties-btn">
+                            对比分析
+                        </button>
+                        <div id="dynasty-results" class="dynasty-results">
+                            <p class="text-muted">点击对比查看结果</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <h3 class="panel-toggle" data-toggle="cross-era-panel">
+                        🌐 跨时代对比 <span class="toggle-icon">▼</span>
+                    </h3>
+                    <div id="cross-era-panel" class="panel-content collapsed">
+                        <div class="control-group">
+                            <label>古代网络</label>
+                            <select id="ancient-topology-select">
+                                <option value="1">汉代河西走廊</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-secondary" id="cross-era-btn">
+                            跨时代对比
+                        </button>
+                        <button class="btn btn-outline" id="show-modern-stations-btn">
+                            显示现代基站
+                        </button>
+                        <div id="cross-era-results" class="cross-era-results">
+                            <p class="text-muted">点击对比查看古今差异</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <h3 class="panel-toggle" data-toggle="resilience-panel">
+                        ⚔️ 抗毁性分析 <span class="toggle-icon">▼</span>
+                    </h3>
+                    <div id="resilience-panel" class="panel-content collapsed">
+                        <div class="control-group">
+                            <label>攻击方式</label>
+                            <select id="attack-type-select">
+                                <option value="random">随机攻击</option>
+                                <option value="degree">度优先攻击</option>
+                                <option value="betweenness">介数优先攻击</option>
+                                <option value="critical">关键节点攻击</option>
+                            </select>
+                        </div>
+                        <div class="control-group">
+                            <label>分析步数</label>
+                            <input type="range" id="resilience-steps" min="5" max="20" value="10" step="1">
+                            <span id="resilience-steps-value">10</span>
+                        </div>
+                        <button class="btn btn-primary" id="resilience-analyze-btn">
+                            运行抗毁性分析
+                        </button>
+                        <div id="resilience-results" class="resilience-results">
+                            <p class="text-muted">运行分析查看鲁棒性曲线</p>
+                        </div>
+                        <canvas id="resilience-chart" class="resilience-chart"></canvas>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <h3 class="panel-toggle" data-toggle="ignition-panel">
+                        🔥 虚拟点燃体验 <span class="toggle-icon">▼</span>
+                    </h3>
+                    <div id="ignition-panel" class="panel-content">
+                        <div class="control-group">
+                            <label>选择点燃烽火台</label>
+                            <select id="ignition-beacon-select">
+                                <option value="">请选择</option>
+                            </select>
+                        </div>
+                        <div class="control-group">
+                            <label>天气因子</label>
+                            <select id="ignition-weather">
+                                <option value="1.0">晴朗</option>
+                                <option value="0.8">轻雾</option>
+                                <option value="0.6">大雾</option>
+                                <option value="0.4">浓雾</option>
+                                <option value="0.2">沙尘暴</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-primary btn-ignite" id="ignite-btn">
+                            🔥 点燃烽火！
+                        </button>
+                        <div class="control-group">
+                            <label>选择朝代网络</label>
+                            <select id="ignition-dynasty">
+                                <option value="1">汉代 (默认)</option>
+                                <option value="2">秦代</option>
+                                <option value="3">明代</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-outline" id="switch-dynasty-btn">
+                            切换朝代网络
+                        </button>
+                        <div id="ignition-results" class="ignition-results">
+                            <p class="text-muted">点燃烽火体验古代信息传递</p>
+                        </div>
+                    </div>
+                </div>
             </aside>
 
             <main class="map-container">
@@ -150,6 +271,7 @@
     <script src="js/beacon_tower_map.js"></script>
     <script src="js/visibility_panel.js"></script>
     <script src="js/signal.js"></script>
+    <script src="js/advanced_features.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>

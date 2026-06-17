@@ -338,3 +338,198 @@ VACUUM ANALYZE network_links;
 VACUUM ANALYZE reliability_analysis;
 VACUUM ANALYZE alerts;
 VACUUM ANALYZE view_sheds;
+
+-- ============================================================
+-- 14. 朝代表：不同朝代的烽火台体系
+-- ============================================================
+CREATE TABLE IF NOT EXISTS dynasties (
+    code VARCHAR(20) PRIMARY KEY,
+    name VARCHAR(50) NOT NULL,
+    period VARCHAR(100),
+    description TEXT,
+    color VARCHAR(20) DEFAULT '#e94560',
+    sort_order INTEGER DEFAULT 0
+);
+
+INSERT INTO dynasties (code, name, period, description, color, sort_order) VALUES
+('qin',  '秦代', '公元前221-前207年', '秦代长城烽火台，初创体系，以渭河流域为核心', '#8b5cf6', 1),
+('han',  '汉代', '公元前202-公元220年', '汉代河西走廊烽火台，丝绸之路保障', '#ef4444', 2),
+('ming', '明代', '公元1368-1644年', '明代九边重镇烽火台，防御蒙古', '#f59e0b', 3)
+ON CONFLICT (code) DO NOTHING;
+
+-- 为 network_topology 增加朝代字段（兼容汉代默认值）
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='network_topology' AND column_name='dynasty_code') THEN
+        ALTER TABLE network_topology ADD COLUMN dynasty_code VARCHAR(20) DEFAULT 'han' REFERENCES dynasties(code);
+    END IF;
+END $$;
+
+-- 为 network_topology 增加名称字段
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='network_topology' AND column_name='name') THEN
+        ALTER TABLE network_topology ADD COLUMN name VARCHAR(100);
+    END IF;
+END $$;
+
+-- 更新现有拓扑
+UPDATE network_topology SET name = '汉代河西走廊主线烽火台网络', dynasty_code = 'han' WHERE id = 1;
+
+-- ============================================================
+-- 15. 现代基站表：跨时代对比用
+-- ============================================================
+CREATE TABLE IF NOT EXISTS modern_base_stations (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    station_type VARCHAR(20) DEFAULT '5g',
+    location GEOGRAPHY(POINT, 4326) NOT NULL,
+    height NUMERIC(6, 2) DEFAULT 30.0,
+    coverage_radius_km NUMERIC(6, 2) DEFAULT 1.5,
+    capacity_mbps NUMERIC(8, 2) DEFAULT 1000.0,
+    latency_ms NUMERIC(6, 2) DEFAULT 10.0,
+    frequency_ghz NUMERIC(5, 2) DEFAULT 3.5,
+    power_kw NUMERIC(5, 2) DEFAULT 1.2,
+    status VARCHAR(20) DEFAULT 'active',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_modern_stations_location ON modern_base_stations USING GIST(location);
+CREATE INDEX IF NOT EXISTS idx_modern_stations_type ON modern_base_stations(station_type);
+
+-- ============================================================
+-- 16. 抗毁性分析结果表
+-- ============================================================
+CREATE TABLE IF NOT EXISTS resilience_analysis (
+    id SERIAL PRIMARY KEY,
+    topology_id INTEGER REFERENCES network_topology(id),
+    analysis_type VARCHAR(30) NOT NULL,
+    attack_type VARCHAR(30) NOT NULL,
+    node_removal_ratio NUMERIC(5, 4) NOT NULL,
+    connectivity_index NUMERIC(6, 4),
+    giant_component_size INTEGER,
+    robustness_score NUMERIC(6, 4),
+    iterations INTEGER DEFAULT 1,
+    details JSONB,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_resilience_topology ON resilience_analysis(topology_id);
+CREATE INDEX IF NOT EXISTS idx_resilience_created ON resilience_analysis(created_at DESC);
+
+-- ============================================================
+-- 17. 用户虚拟点燃记录表
+-- ============================================================
+CREATE TABLE IF NOT EXISTS user_beacon_ignitions (
+    id BIGSERIAL PRIMARY KEY,
+    session_id VARCHAR(64),
+    beacon_id INTEGER REFERENCES beacons(id),
+    topology_id INTEGER REFERENCES network_topology(id),
+    user_note VARCHAR(200),
+    weather_factor NUMERIC(5, 4) DEFAULT 1.0,
+    reached_count INTEGER DEFAULT 0,
+    total_propagation_time_ms NUMERIC(12, 2),
+    propagation_path JSONB,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_ignitions_beacon ON user_beacon_ignitions(beacon_id);
+CREATE INDEX IF NOT EXISTS idx_ignitions_session ON user_beacon_ignitions(session_id);
+CREATE INDEX IF NOT EXISTS idx_ignitions_created ON user_beacon_ignitions(created_at DESC);
+
+-- ============================================================
+-- 18. 朝代样例数据：秦代烽火台（关中-渭河沿线）
+-- ============================================================
+INSERT INTO beacons (name, code, dynasty, location, elevation, height, description, status)
+VALUES
+('咸阳烽火台', 'XY-QIN-01', '秦代', ST_SetSRID(ST_MakePoint(108.71, 34.33), 4326), 400.0, 8.0, '秦都咸阳近郊烽火台', 'active'),
+('临潼烽火台', 'LT-QIN-02', '秦代', ST_SetSRID(ST_MakePoint(109.22, 34.37), 4326), 450.0, 9.0, '临潼新丰镇烽火台', 'active'),
+('华阴烽火台', 'HY-QIN-03', '秦代', ST_SetSRID(ST_MakePoint(110.09, 34.56), 4326), 520.0, 8.5, '华阴潼关前线烽火台', 'active'),
+('宝鸡烽火台', 'BJ-QIN-04', '秦代', ST_SetSRID(ST_MakePoint(107.15, 34.37), 4326), 620.0, 7.5, '宝鸡陈仓烽火台', 'active'),
+('天水烽火台', 'TS-QIN-05', '秦代', ST_SetSRID(ST_MakePoint(105.72, 34.58), 4326), 1140.0, 10.0, '天水陇西烽火台', 'active'),
+('延安烽火台', 'YA-QIN-06', '秦代', ST_SetSRID(ST_MakePoint(109.49, 36.59), 4326), 1100.0, 9.0, '延安北境烽火台', 'active'),
+('韩城烽火台', 'HC-QIN-07', '秦代', ST_SetSRID(ST_MakePoint(110.45, 35.48), 4326), 550.0, 8.0, '韩城黄河边烽火台', 'active'),
+('汉中烽火台', 'HZ-QIN-08', '秦代', ST_SetSRID(ST_MakePoint(107.03, 33.07), 4326), 550.0, 9.5, '汉中蜀道烽火台', 'active')
+ON CONFLICT (code) DO NOTHING;
+
+-- 秦代网络拓扑
+INSERT INTO network_topology (version, name, description, is_active, dynasty_code)
+VALUES (1, '秦代关中烽火台网络', '秦代渭河沿线及北境防御体系', false, 'qin')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO network_links (topology_id, from_beacon_id, to_beacon_id, link_type, base_reliability, is_bidirectional, is_critical)
+VALUES
+(2, 13, 14, 'visual', 0.90, true, true),
+(2, 14, 15, 'visual', 0.92, true, false),
+(2, 13, 16, 'visual', 0.85, true, false),
+(2, 16, 17, 'visual', 0.88, true, false),
+(2, 14, 18, 'visual', 0.87, true, false),
+(2, 15, 19, 'visual', 0.91, true, false),
+(2, 13, 20, 'visual', 0.83, true, false)
+ON CONFLICT DO NOTHING;
+
+-- ============================================================
+-- 19. 朝代样例数据：明代九边烽火台（更密集）
+-- ============================================================
+INSERT INTO beacons (name, code, dynasty, location, elevation, height, description, status)
+VALUES
+('嘉峪关明台', 'JYG-M-01', '明代', ST_SetSRID(ST_MakePoint(98.29, 39.77), 4326), 1666.0, 14.0, '嘉峪关关城明代烽火台', 'active'),
+('酒泉明台', 'JQ-M-02', '明代', ST_SetSRID(ST_MakePoint(98.50, 39.73), 4326), 1480.0, 11.0, '酒泉明代卫所烽火台', 'active'),
+('张掖明台', 'ZY-M-03', '明代', ST_SetSRID(ST_MakePoint(100.46, 38.93), 4326), 1485.0, 12.0, '张掖甘州明代烽火台', 'active'),
+('山丹明台', 'SD-M-04', '明代', ST_SetSRID(ST_MakePoint(101.09, 38.79), 4326), 1760.0, 10.5, '山丹峡口明代烽火台', 'active'),
+('武威明台', 'WW-M-05', '明代', ST_SetSRID(ST_MakePoint(102.64, 37.93), 4326), 1530.0, 13.0, '武威凉州明代烽火台', 'active'),
+('古浪明台', 'GL-M-06', '明代', ST_SetSRID(ST_MakePoint(102.90, 37.48), 4326), 2000.0, 10.0, '古浪乌鞘岭明代烽火台', 'active'),
+('兰州明台', 'LZ-M-07', '明代', ST_SetSRID(ST_MakePoint(103.83, 36.06), 4326), 1520.0, 12.5, '兰州金城关明代烽火台', 'active'),
+('临洮明台', 'LT-M-08', '明代', ST_SetSRID(ST_MakePoint(103.86, 35.37), 4326), 1880.0, 9.5, '临洮明代边墙烽火台', 'active'),
+('固原明台', 'GY-M-09', '明代', ST_SetSRID(ST_MakePoint(106.28, 36.02), 4326), 1800.0, 11.0, '固原明代总镇烽火台', 'active'),
+('银川明台', 'YC-M-10', '明代', ST_SetSRID(ST_MakePoint(106.27, 38.47), 4326), 1110.0, 12.0, '银川宁夏镇明代烽火台', 'active')
+ON CONFLICT (code) DO NOTHING;
+
+-- 明代网络拓扑
+INSERT INTO network_topology (version, name, description, is_active, dynasty_code)
+VALUES (1, '明代九边河西段烽火台网络', '明代九边重镇甘肃镇防御体系，更密集更规范', false, 'ming')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO network_links (topology_id, from_beacon_id, to_beacon_id, link_type, base_reliability, is_bidirectional, is_critical)
+VALUES
+(3, 21, 22, 'visual', 0.94, true, true),
+(3, 22, 23, 'visual', 0.91, true, false),
+(3, 23, 24, 'visual', 0.93, true, false),
+(3, 24, 25, 'visual', 0.90, true, false),
+(3, 25, 26, 'visual', 0.92, true, false),
+(3, 26, 27, 'visual', 0.89, true, true),
+(3, 27, 28, 'visual', 0.91, true, false),
+(3, 27, 29, 'visual', 0.87, true, false),
+(3, 29, 30, 'visual', 0.85, true, false),
+(3, 23, 26, 'visual', 0.82, true, false)
+ON CONFLICT DO NOTHING;
+
+-- ============================================================
+-- 20. 现代基站样例数据（河西走廊沿线5G基站模拟）
+-- ============================================================
+INSERT INTO modern_base_stations (name, station_type, location, height, coverage_radius_km, capacity_mbps, latency_ms, frequency_ghz, power_kw, status)
+VALUES
+('玉门5G基站', '5g', ST_SetSRID(ST_MakePoint(97.04, 40.29), 4326), 35.0, 1.2, 1200.0, 8.0, 3.5, 1.5, 'active'),
+('嘉峪关5G基站', '5g', ST_SetSRID(ST_MakePoint(98.29, 39.77), 4326), 40.0, 1.5, 1500.0, 7.0, 3.5, 2.0, 'active'),
+('酒泉5G基站', '5g', ST_SetSRID(ST_MakePoint(98.50, 39.73), 4326), 32.0, 1.0, 1000.0, 9.0, 2.6, 1.2, 'active'),
+('张掖5G基站', '5g', ST_SetSRID(ST_MakePoint(100.46, 38.93), 4326), 38.0, 1.8, 1800.0, 6.5, 3.5, 2.5, 'active'),
+('武威5G基站', '5g', ST_SetSRID(ST_MakePoint(102.64, 37.93), 4326), 30.0, 1.3, 1300.0, 8.5, 2.6, 1.8, 'active'),
+('兰州5G基站', '5g', ST_SetSRID(ST_MakePoint(103.83, 36.06), 4326), 45.0, 2.0, 2000.0, 5.0, 3.5, 3.0, 'active'),
+('天水5G基站', '5g', ST_SetSRID(ST_MakePoint(105.72, 34.58), 4326), 35.0, 1.5, 1400.0, 7.5, 3.5, 2.0, 'active'),
+('西安5G基站', '5g', ST_SetSRID(ST_MakePoint(108.94, 34.27), 4326), 50.0, 2.5, 3000.0, 4.0, 3.5, 5.0, 'active'),
+('敦煌微波站', 'microwave', ST_SetSRID(ST_MakePoint(94.66, 40.14), 4326), 80.0, 50.0, 500.0, 2.0, 6.0, 0.5, 'active'),
+('西宁卫星站', 'satellite', ST_SetSRID(ST_MakePoint(101.78, 36.62), 4326), 200.0, 200.0, 100.0, 500.0, 14.0, 10.0, 'active')
+ON CONFLICT DO NOTHING;
+
+-- ============================================================
+-- 完成
+-- ============================================================
+ANALYZE dynasties;
+ANALYZE modern_base_stations;
+ANALYZE resilience_analysis;
+ANALYZE user_beacon_ignitions;
+
+VACUUM ANALYZE dynasties;
+VACUUM ANALYZE modern_base_stations;
+VACUUM ANALYZE resilience_analysis;
+VACUUM ANALYZE user_beacon_ignitions;
