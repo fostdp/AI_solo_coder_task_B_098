@@ -3,18 +3,23 @@ package models
 import "time"
 
 type Beacon struct {
-	ID          int       `db:"id" json:"id"`
-	Name        string    `db:"name" json:"name"`
-	Code        string    `db:"code" json:"code"`
-	Dynasty     string    `db:"dynasty" json:"dynasty"`
-	Lon         float64   `db:"lon" json:"lon"`
-	Lat         float64   `db:"lat" json:"lat"`
-	Elevation   float64   `db:"elevation" json:"elevation"`
-	Height      float64   `db:"height" json:"height"`
-	Description string    `db:"description" json:"description"`
-	Status      string    `db:"status" json:"status"`
-	CreatedAt   time.Time `db:"created_at" json:"created_at"`
-	UpdatedAt   time.Time `db:"updated_at" json:"updated_at"`
+	ID                   int       `db:"id" json:"id"`
+	Name                 string    `db:"name" json:"name"`
+	Code                 string    `db:"code" json:"code"`
+	Dynasty              string    `db:"dynasty" json:"dynasty"`
+	Lon                  float64   `db:"lon" json:"lon"`
+	Lat                  float64   `db:"lat" json:"lat"`
+	Elevation            float64   `db:"elevation" json:"elevation"`
+	Height               float64   `db:"height" json:"height"`
+	Description          string    `db:"description" json:"description"`
+	Status               string    `db:"status" json:"status"`
+	CoordinateSource     string    `db:"coordinate_source" json:"coordinate_source"`
+	CoordinatePrecisionM float64   `db:"coordinate_precision_m" json:"coordinate_precision_m"`
+	GpsVerified          bool      `db:"gps_verified" json:"gps_verified"`
+	ArchaeologicalSiteID string    `db:"archaeological_site_id" json:"archaeological_site_id"`
+	SurveyYear           int       `db:"survey_year" json:"survey_year"`
+	CreatedAt            time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt            time.Time `db:"updated_at" json:"updated_at"`
 }
 
 type SensorData struct {
@@ -140,19 +145,43 @@ type Dynasty struct {
 }
 
 type ModernBaseStation struct {
-	ID               int       `db:"id" json:"id"`
-	Name             string    `db:"name" json:"name"`
-	StationType      string    `db:"station_type" json:"station_type"`
-	Lon              float64   `db:"lon" json:"lon"`
-	Lat              float64   `db:"lat" json:"lat"`
-	Height           float64   `db:"height" json:"height"`
-	CoverageRadiusKm float64   `db:"coverage_radius_km" json:"coverage_radius_km"`
-	CapacityMbps     float64   `db:"capacity_mbps" json:"capacity_mbps"`
-	LatencyMs        float64   `db:"latency_ms" json:"latency_ms"`
-	FrequencyGhz     float64   `db:"frequency_ghz" json:"frequency_ghz"`
-	PowerKw          float64   `db:"power_kw" json:"power_kw"`
-	Status           string    `db:"status" json:"status"`
-	CreatedAt        time.Time `db:"created_at" json:"created_at"`
+	ID                  int       `db:"id" json:"id"`
+	Name                string    `db:"name" json:"name"`
+	StationType         string    `db:"station_type" json:"station_type"`
+	TypeName            string    `db:"type_name,omitempty" json:"type_name,omitempty"`
+	Lon                 float64   `db:"lon" json:"lon"`
+	Lat                 float64   `db:"lat" json:"lat"`
+	Height              float64   `db:"height" json:"height"`
+	CoverageRadiusKm    float64   `db:"coverage_radius_km" json:"coverage_radius_km"`
+	CapacityMbps        float64   `db:"capacity_mbps" json:"capacity_mbps"`
+	LatencyMs           float64   `db:"latency_ms" json:"latency_ms"`
+	FrequencyGhz        float64   `db:"frequency_ghz" json:"frequency_ghz"`
+	PowerKw             float64   `db:"power_kw" json:"power_kw"`
+	IsStandardCompliant bool      `db:"is_standard_compliant" json:"is_standard_compliant"`
+	StandardVersion     string    `db:"standard_version" json:"standard_version"`
+	Status              string    `db:"status" json:"status"`
+	CreatedAt           time.Time `db:"created_at" json:"created_at"`
+}
+
+type BaseStationType struct {
+	TypeCode             string  `db:"type_code" json:"type_code"`
+	TypeName             string  `db:"type_name" json:"type_name"`
+	StandardVersion      string  `db:"standard_version" json:"standard_version"`
+	Description          string  `db:"description" json:"description"`
+	MinCoverageRadiusKm  float64 `db:"min_coverage_radius_km" json:"min_coverage_radius_km"`
+	MaxCoverageRadiusKm  float64 `db:"max_coverage_radius_km" json:"max_coverage_radius_km"`
+	StdCoverageRadiusKm  float64 `db:"standard_coverage_radius_km" json:"standard_coverage_radius_km"`
+	MinCapacityMbps      float64 `db:"min_capacity_mbps" json:"min_capacity_mbps"`
+	MaxCapacityMbps      float64 `db:"max_capacity_mbps" json:"max_capacity_mbps"`
+	StdCapacityMbps      float64 `db:"standard_capacity_mbps" json:"standard_capacity_mbps"`
+	MinLatencyMs         float64 `db:"min_latency_ms" json:"min_latency_ms"`
+	MaxLatencyMs         float64 `db:"max_latency_ms" json:"max_latency_ms"`
+	StdLatencyMs         float64 `db:"standard_latency_ms" json:"standard_latency_ms"`
+	FrequencyBand        string  `db:"frequency_band" json:"frequency_band"`
+	TypicalHeightM       float64 `db:"typical_height_m" json:"typical_height_m"`
+	TypicalPowerKw       float64 `db:"typical_power_kw" json:"typical_power_kw"`
+	TechnologyGeneration string  `db:"technology_generation" json:"technology_generation"`
+	SortOrder            int     `db:"sort_order" json:"sort_order"`
 }
 
 type ResilienceAnalysis struct {

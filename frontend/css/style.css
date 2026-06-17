@@ -563,6 +563,34 @@ body {
     border-radius: 4px;
 }
 
+.quick-ignite-section {
+    padding-bottom: 12px;
+    margin-bottom: 12px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.btn-quick-ignite {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: white;
+    font-weight: bold;
+    font-size: 1rem;
+    padding: 12px;
+    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
+    transition: all 0.3s ease;
+}
+
+.btn-quick-ignite:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(245, 158, 11, 0.5);
+}
+
+.quick-ignite-hint {
+    color: #9ca3af;
+    font-size: 0.75rem;
+    margin-top: 6px;
+    text-align: center;
+}
+
 .btn-ignite {
     background: linear-gradient(135deg, #ef4444, #f97316);
     color: white;

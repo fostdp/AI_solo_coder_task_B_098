@@ -143,14 +143,32 @@ func (a *AdvancedAnalyzer) getDynastyMetrics(dynastyCode string) (*models.Dynast
 func (a *AdvancedAnalyzer) GetModernBaseStations() ([]models.ModernBaseStation, error) {
 	var stations []models.ModernBaseStation
 	err := a.db.Select(&stations, `
-		SELECT id, name, station_type,
-		       ST_X(location::geometry) as lon, ST_Y(location::geometry) as lat,
-		       height, coverage_radius_km, capacity_mbps, latency_ms,
-		       frequency_ghz, power_kw, status, created_at
-		FROM modern_base_stations
-		WHERE status = 'active'
+		SELECT s.id, s.name, s.station_type, t.type_name,
+		       ST_X(s.location::geometry) as lon, ST_Y(s.location::geometry) as lat,
+		       s.height, s.coverage_radius_km, s.capacity_mbps, s.latency_ms,
+		       s.frequency_ghz, s.power_kw, s.is_standard_compliant, s.standard_version,
+		       s.status, s.created_at
+		FROM modern_base_stations s
+		LEFT JOIN base_station_types t ON t.type_code = s.station_type
+		WHERE s.status = 'active'
+		ORDER BY s.id
 	`)
 	return stations, err
+}
+
+func (a *AdvancedAnalyzer) GetBaseStationTypes() ([]models.BaseStationType, error) {
+	var types []models.BaseStationType
+	err := a.db.Select(&types, `
+		SELECT type_code, type_name, standard_version, description,
+		       min_coverage_radius_km, max_coverage_radius_km, standard_coverage_radius_km,
+		       min_capacity_mbps, max_capacity_mbps, standard_capacity_mbps,
+		       min_latency_ms, max_latency_ms, standard_latency_ms,
+		       frequency_band, typical_height_m, typical_power_kw,
+		       technology_generation, sort_order
+		FROM base_station_types
+		ORDER BY sort_order ASC
+	`)
+	return types, err
 }
 
 func (a *AdvancedAnalyzer) CrossEraComparison(topologyID int) (*models.CrossEraComparison, error) {
@@ -256,7 +274,24 @@ func (a *AdvancedAnalyzer) AnalyzeResilience(topologyID int, attackType string, 
 		return nil, errors.New("topology not found or empty")
 	}
 
-	result := analysis.AnalyzeResilience(graph, attackType, steps, iterations)
+	strategy := analysis.AttackStrategy{
+		AttackType:      attackType,
+		Steps:           steps,
+		Iterations:      iterations,
+		CascadeAlpha:    0.5,
+		CascadeMaxDepth: 5,
+	}
+
+	var result *analysis.ResilienceResult
+
+	isLinkAttack := attackType == "link_random" || attackType == "link_critical" ||
+		attackType == "link_betweenness" || attackType == "link_reliability"
+
+	if isLinkAttack || attackType == "cascading" || attackType == "coordinated" {
+		result = analysis.AnalyzeResilienceWithStrategy(graph, strategy)
+	} else {
+		result = analysis.AnalyzeResilience(graph, attackType, steps, iterations)
+	}
 
 	resp := &models.ResilienceResult{
 		AttackType:        result.AttackType,

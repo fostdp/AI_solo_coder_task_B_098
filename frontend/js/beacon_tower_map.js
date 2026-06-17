@@ -87,6 +87,10 @@ function addBeaconMarker(beacon) {
                 <p><span class="info-label">朝代:</span> ${beacon.dynasty}</p>
                 <p><span class="info-label">海拔:</span> ${beacon.elevation.toFixed(1)} 米</p>
                 <p><span class="info-label">台高:</span> ${beacon.height} 米</p>
+                <p><span class="info-label">坐标精度:</span> ${beacon.coordinate_precision_m?.toFixed(1) || '--'} 米</p>
+                <p><span class="info-label">GPS验证:</span> ${beacon.gps_verified ? '✅ 已验证' : '❌ 未验证'}</p>
+                <p><span class="info-label">考古编号:</span> ${beacon.archaeological_site_id || '--'}</p>
+                <p><span class="info-label">调查年份:</span> ${beacon.survey_year || '--'}</p>
                 <p><span class="info-label">状态:</span> ${beacon.status === 'active' ? '正常' : '停用'}</p>
             </div>
         </div>
@@ -169,6 +173,10 @@ function showBeaconDetails(beacon) {
             <span class="info-value">${beacon.code}</span>
         </div>
         <div class="info-row">
+            <span class="info-label">朝代</span>
+            <span class="info-value">${beacon.dynasty}</span>
+        </div>
+        <div class="info-row">
             <span class="info-label">海拔</span>
             <span class="info-value">${beacon.elevation.toFixed(1)} m</span>
         </div>
@@ -183,6 +191,28 @@ function showBeaconDetails(beacon) {
         <div class="info-row">
             <span class="info-label">纬度</span>
             <span class="info-value">${beacon.lat.toFixed(4)}°</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">坐标精度</span>
+            <span class="info-value">${beacon.coordinate_precision_m?.toFixed(1) || '--'} m</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">GPS验证</span>
+            <span class="info-value" style="color: ${beacon.gps_verified ? '#4ade80' : '#fbbf24'};">
+                ${beacon.gps_verified ? '已验证' : '未验证'}
+            </span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">考古编号</span>
+            <span class="info-value">${beacon.archaeological_site_id || '--'}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">调查年份</span>
+            <span class="info-value">${beacon.survey_year || '--'}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">数据来源</span>
+            <span class="info-value" style="font-size: 11px;">${beacon.coordinate_source || '--'}</span>
         </div>
         <div class="info-row">
             <span class="info-label">状态</span>

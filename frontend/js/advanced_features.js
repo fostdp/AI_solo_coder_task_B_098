@@ -213,11 +213,14 @@ class AdvancedFeatures {
                 .bindPopup(`
                     <h4>${station.name}</h4>
                     <div class="popup-info">
-                        <div><span class="info-label">类型:</span> ${station.station_type}</div>
+                        <div><span class="info-label">类型:</span> ${station.type_name || station.station_type}</div>
+                        <div><span class="info-label">标准版本:</span> ${station.standard_version || '--'}</div>
+                        <div><span class="info-label">合规性:</span> ${station.is_standard_compliant ? '✅ 符合标准' : '⚠️ 待验证'}</div>
                         <div><span class="info-label">覆盖:</span> ${station.coverage_radius_km} km</div>
                         <div><span class="info-label">容量:</span> ${station.capacity_mbps} Mbps</div>
                         <div><span class="info-label">延迟:</span> ${station.latency_ms} ms</div>
                         <div><span class="info-label">频率:</span> ${station.frequency_ghz} GHz</div>
+                        <div><span class="info-label">功耗:</span> ${station.power_kw} kW</div>
                     </div>
                 `);
 
@@ -308,7 +311,13 @@ class AdvancedFeatures {
             'random': '随机攻击',
             'degree': '度优先攻击',
             'betweenness': '介数优先攻击',
-            'critical': '关键节点攻击'
+            'critical': '关键节点攻击',
+            'link_random': '随机链路攻击',
+            'link_critical': '关键链路攻击',
+            'link_betweenness': '链路介数优先',
+            'link_reliability': '低可靠性优先',
+            'cascading': '级联故障',
+            'coordinated': '协同攻击'
         };
         return names[type] || type;
     }
@@ -392,6 +401,11 @@ class AdvancedFeatures {
             btn.addEventListener('click', () => this.igniteBeacon());
         }
 
+        const quickBtn = document.getElementById('quick-ignite-btn');
+        if (quickBtn) {
+            quickBtn.addEventListener('click', () => this.quickIgnite());
+        }
+
         const select = document.getElementById('ignition-beacon-select');
         if (select && this.beaconMap && this.beaconMap.beacons) {
             this.beaconMap.beacons.forEach(beacon => {
@@ -401,6 +415,80 @@ class AdvancedFeatures {
                 select.appendChild(option);
             });
         }
+
+        if (this.beaconMap && this.beaconMap.markers) {
+            Object.values(this.beaconMap.markers).forEach(marker => {
+                marker.on('dblclick', (e) => {
+                    const beaconId = this.getBeaconIdFromMarker(marker);
+                    if (beaconId) {
+                        this.quickIgniteById(beaconId);
+                    }
+                });
+            });
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'SELECT') {
+                e.preventDefault();
+                this.quickIgnite();
+            }
+        });
+    }
+
+    getBeaconIdFromMarker(marker) {
+        if (!this.beaconMap || !this.beaconMap.beacons) return null;
+        const latlng = marker.getLatLng();
+        for (const beacon of this.beaconMap.beacons) {
+            if (Math.abs(beacon.lat - latlng.lat) < 0.0001 &&
+                Math.abs(beacon.lon - latlng.lng) < 0.0001) {
+                return beacon.id;
+            }
+        }
+        return null;
+    }
+
+    quickIgnite() {
+        if (this.isAnimating) {
+            return;
+        }
+
+        let beaconId = null;
+        const select = document.getElementById('ignition-beacon-select');
+        if (select && select.value) {
+            beaconId = parseInt(select.value);
+        }
+
+        if (!beaconId && this.beaconMap && this.beaconMap.beacons && this.beaconMap.beacons.length > 0) {
+            const mapCenter = this.map.getCenter();
+            let minDist = Infinity;
+            for (const beacon of this.beaconMap.beacons) {
+                const dist = Math.sqrt(
+                    Math.pow(beacon.lat - mapCenter.lat, 2) +
+                    Math.pow(beacon.lon - mapCenter.lng, 2)
+                );
+                if (dist < minDist) {
+                    minDist = dist;
+                    beaconId = beacon.id;
+                }
+            }
+        }
+
+        if (beaconId) {
+            this.quickIgniteById(beaconId);
+        }
+    }
+
+    quickIgniteById(beaconId) {
+        if (this.isAnimating) {
+            return;
+        }
+
+        const select = document.getElementById('ignition-beacon-select');
+        if (select) {
+            select.value = beaconId;
+        }
+
+        this.igniteBeacon();
     }
 
     async igniteBeacon() {

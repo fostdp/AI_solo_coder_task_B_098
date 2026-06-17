@@ -5,8 +5,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/gin-gonic/gin"
 	"beacon-system/modules/advanced_analysis"
+
+	"github.com/gin-gonic/gin"
 )
 
 type AdvancedHandler struct {
@@ -21,6 +22,7 @@ func (h *AdvancedHandler) RegisterRoutes(router *gin.RouterGroup) {
 	router.GET("/dynasties", h.GetDynasties)
 	router.GET("/dynasty-comparison", h.CompareDynasties)
 	router.GET("/modern-stations", h.GetModernStations)
+	router.GET("/base-station-types", h.GetBaseStationTypes)
 	router.GET("/cross-era-comparison", h.CrossEraComparison)
 	router.POST("/resilience", h.AnalyzeResilience)
 	router.POST("/ignite", h.IgniteBeacon)
@@ -63,6 +65,15 @@ func (h *AdvancedHandler) GetModernStations(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"stations": stations})
+}
+
+func (h *AdvancedHandler) GetBaseStationTypes(c *gin.Context) {
+	types, err := h.analyzer.GetBaseStationTypes()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"types": types})
 }
 
 func (h *AdvancedHandler) CrossEraComparison(c *gin.Context) {

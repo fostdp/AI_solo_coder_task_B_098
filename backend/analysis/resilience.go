@@ -12,7 +12,29 @@ const (
 	AttackDegree   = "degree"
 	AttackBetween  = "betweenness"
 	AttackCritical = "critical"
+
+	AttackLinkRandom      = "link_random"
+	AttackLinkCritical    = "link_critical"
+	AttackLinkBetween     = "link_betweenness"
+	AttackLinkReliability = "link_reliability"
+
+	AttackCascading   = "cascading"
+	AttackCoordinated = "coordinated"
 )
+
+const (
+	TargetNode = "node"
+	TargetLink = "link"
+)
+
+type AttackStrategy struct {
+	AttackType      string
+	TargetType      string
+	Steps           int
+	Iterations      int
+	CascadeAlpha    float64
+	CascadeMaxDepth int
+}
 
 type ResilienceCurvePoint struct {
 	RemovalRatio      float64
@@ -388,4 +410,450 @@ func shuffle(slice []int) {
 		j := rand.Intn(i + 1)
 		slice[i], slice[j] = slice[j], slice[i]
 	}
+}
+
+func AnalyzeResilienceWithStrategy(graph *Graph, strategy AttackStrategy) *ResilienceResult {
+	if strategy.Steps <= 0 {
+		strategy.Steps = 10
+	}
+	if strategy.Iterations <= 0 {
+		strategy.Iterations = 1
+	}
+	if strategy.CascadeAlpha <= 0 {
+		strategy.CascadeAlpha = 0.5
+	}
+	if strategy.CascadeMaxDepth <= 0 {
+		strategy.CascadeMaxDepth = 5
+	}
+
+	totalNodes := len(graph.Nodes)
+	if totalNodes == 0 {
+		return &ResilienceResult{
+			AttackType:        strategy.AttackType,
+			CurvePoints:       []ResilienceCurvePoint{{RemovalRatio: 0.0, ConnectivityIndex: 0.0, GiantComponentPct: 0.0}},
+			RobustnessScore:   0.0,
+			CriticalThreshold: 0.0,
+			TotalNodes:        0,
+			Iterations:        strategy.Iterations,
+		}
+	}
+
+	isLinkAttack := strategy.AttackType == AttackLinkRandom ||
+		strategy.AttackType == AttackLinkCritical ||
+		strategy.AttackType == AttackLinkBetween ||
+		strategy.AttackType == AttackLinkReliability
+
+	if isLinkAttack {
+		return analyzeLinkAttackResilience(graph, strategy)
+	} else if strategy.AttackType == AttackCascading {
+		return analyzeCascadingFailure(graph, strategy)
+	} else if strategy.AttackType == AttackCoordinated {
+		return analyzeCoordinatedAttack(graph, strategy)
+	} else {
+		return AnalyzeResilience(graph, strategy.AttackType, strategy.Steps, strategy.Iterations)
+	}
+}
+
+func analyzeLinkAttackResilience(graph *Graph, strategy AttackStrategy) *ResilienceResult {
+	totalNodes := len(graph.Nodes)
+	totalLinks := len(graph.Edges)
+	steps := strategy.Steps
+
+	curve := make([]ResilienceCurvePoint, steps+1)
+	curve[0] = ResilienceCurvePoint{
+		RemovalRatio:      0.0,
+		ConnectivityIndex: calculateConnectivityIndex(graph),
+		GiantComponentPct: 1.0,
+	}
+
+	linkOrder := getLinkRemovalOrder(graph, strategy.AttackType)
+
+	for s := 1; s <= steps; s++ {
+		ratio := float64(s) / float64(steps)
+		removeCount := int(math.Round(float64(totalLinks) * ratio))
+		if removeCount >= totalLinks {
+			curve[s] = ResilienceCurvePoint{
+				RemovalRatio:      ratio,
+				ConnectivityIndex: 0.0,
+				GiantComponentPct: float64(totalNodes) / float64(totalNodes),
+			}
+			continue
+		}
+
+		avgConnIdx := 0.0
+		avgGiantPct := 0.0
+
+		for iter := 0; iter < strategy.Iterations; iter++ {
+			var removeIDs []int
+			if strategy.AttackType == AttackLinkRandom {
+				removeIDs = pickRandomLinks(graph, removeCount, iter)
+			} else {
+				removeIDs = linkOrder[:removeCount]
+			}
+
+			subGraph := removeLinks(graph, removeIDs)
+			connIdx := calculateConnectivityIndex(subGraph)
+			giantSize := getGiantComponentSize(subGraph)
+			giantPct := float64(giantSize) / float64(totalNodes)
+
+			avgConnIdx += connIdx
+			avgGiantPct += giantPct
+		}
+
+		curve[s] = ResilienceCurvePoint{
+			RemovalRatio:      ratio,
+			ConnectivityIndex: avgConnIdx / float64(strategy.Iterations),
+			GiantComponentPct: avgGiantPct / float64(strategy.Iterations),
+		}
+	}
+
+	robustnessScore := calculateRobustnessScore(curve)
+	criticalThreshold := findCriticalThreshold(curve)
+
+	return &ResilienceResult{
+		AttackType:        strategy.AttackType,
+		CurvePoints:       curve,
+		RobustnessScore:   robustnessScore,
+		CriticalThreshold: criticalThreshold,
+		TotalNodes:        totalNodes,
+		Iterations:        strategy.Iterations,
+	}
+}
+
+func getLinkRemovalOrder(graph *Graph, attackType string) []int {
+	linkIDs := make([]int, 0, len(graph.Edges))
+	for i := range graph.Edges {
+		linkIDs = append(linkIDs, i)
+	}
+
+	switch attackType {
+	case AttackLinkCritical:
+		sort.Slice(linkIDs, func(i, j int) bool {
+			return graph.Edges[linkIDs[i]].IsCritical && !graph.Edges[linkIDs[j]].IsCritical
+		})
+	case AttackLinkBetween:
+		linkBetweenness := computeLinkBetweenness(graph)
+		sort.Slice(linkIDs, func(i, j int) bool {
+			return linkBetweenness[linkIDs[i]] > linkBetweenness[linkIDs[j]]
+		})
+	case AttackLinkReliability:
+		sort.Slice(linkIDs, func(i, j int) bool {
+			return graph.Edges[linkIDs[i]].BaseReliability < graph.Edges[linkIDs[j]].BaseReliability
+		})
+	default:
+		shuffle(linkIDs)
+	}
+
+	return linkIDs
+}
+
+func computeLinkBetweenness(graph *Graph) map[int]float64 {
+	linkBetweenness := make(map[int]float64)
+	for i := range graph.Edges {
+		linkBetweenness[i] = 0.0
+	}
+
+	edgeIndexMap := make(map[[2]int]int)
+	for i, edge := range graph.Edges {
+		key := [2]int{edge.From, edge.To}
+		edgeIndexMap[key] = i
+		if edge.IsBidirectional {
+			reverseKey := [2]int{edge.To, edge.From}
+			edgeIndexMap[reverseKey] = i
+		}
+	}
+
+	for srcID := range graph.Nodes {
+		sigma := make(map[int]float64)
+		dist := make(map[int]int)
+		pred := make(map[int][]int)
+		stack := []int{}
+
+		for id := range graph.Nodes {
+			sigma[id] = 0.0
+			dist[id] = -1
+		}
+		sigma[srcID] = 1.0
+		dist[srcID] = 0
+
+		queue := []int{srcID}
+		for len(queue) > 0 {
+			v := queue[0]
+			queue = queue[1:]
+			stack = append(stack, v)
+
+			for _, w := range graph.Adj[v] {
+				if dist[w] < 0 {
+					queue = append(queue, w)
+					dist[w] = dist[v] + 1
+				}
+				if dist[w] == dist[v]+1 {
+					sigma[w] += sigma[v]
+					pred[w] = append(pred[w], v)
+				}
+			}
+		}
+
+		delta := make(map[int]float64)
+		for id := range graph.Nodes {
+			delta[id] = 0.0
+		}
+
+		for i := len(stack) - 1; i >= 0; i-- {
+			w := stack[i]
+			for _, v := range pred[w] {
+				c := sigma[v] / sigma[w] * (1.0 + delta[w])
+				delta[v] += c
+				if edgeIdx, ok := edgeIndexMap[[2]int{v, w}]; ok {
+					linkBetweenness[edgeIdx] += c
+				}
+			}
+		}
+	}
+
+	for k := range linkBetweenness {
+		linkBetweenness[k] /= 2.0
+	}
+
+	return linkBetweenness
+}
+
+func pickRandomLinks(graph *Graph, count int, seed int) []int {
+	ids := make([]int, len(graph.Edges))
+	for i := range graph.Edges {
+		ids[i] = i
+	}
+	r := rand.New(rand.NewSource(int64(seed * 1000)))
+	for i := len(ids) - 1; i > 0; i-- {
+		j := r.Intn(i + 1)
+		ids[i], ids[j] = ids[j], ids[i]
+	}
+	if count > len(ids) {
+		count = len(ids)
+	}
+	return ids[:count]
+}
+
+func removeLinks(graph *Graph, removeIndices []int) *Graph {
+	removeSet := make(map[int]bool)
+	for _, idx := range removeIndices {
+		removeSet[idx] = true
+	}
+
+	newGraph := NewGraph()
+	for _, node := range graph.Nodes {
+		newGraph.AddNode(node)
+	}
+
+	for i, edge := range graph.Edges {
+		if !removeSet[i] {
+			newEdge := *edge
+			newGraph.Edges = append(newGraph.Edges, &newEdge)
+		}
+	}
+
+	newGraph.BuildAdjacencyList()
+	return newGraph
+}
+
+func analyzeCascadingFailure(graph *Graph, strategy AttackStrategy) *ResilienceResult {
+	totalNodes := len(graph.Nodes)
+	steps := strategy.Steps
+	alpha := strategy.CascadeAlpha
+	maxDepth := strategy.CascadeMaxDepth
+
+	curve := make([]ResilienceCurvePoint, steps+1)
+	curve[0] = ResilienceCurvePoint{
+		RemovalRatio:      0.0,
+		ConnectivityIndex: calculateConnectivityIndex(graph),
+		GiantComponentPct: 1.0,
+	}
+
+	nodeOrder := getNodeRemovalOrder(graph, AttackDegree)
+
+	for s := 1; s <= steps; s++ {
+		ratio := float64(s) / float64(steps)
+		removeCount := int(math.Round(float64(totalNodes) * ratio))
+		if removeCount >= totalNodes {
+			curve[s] = ResilienceCurvePoint{
+				RemovalRatio:      ratio,
+				ConnectivityIndex: 0.0,
+				GiantComponentPct: 0.0,
+			}
+			continue
+		}
+
+		avgConnIdx := 0.0
+		avgGiantPct := 0.0
+
+		for iter := 0; iter < strategy.Iterations; iter++ {
+			var initialRemove []int
+			if strategy.AttackType == AttackCascading {
+				initialRemove = nodeOrder[:removeCount]
+			} else {
+				initialRemove = pickRandomNodes(graph, removeCount, iter)
+			}
+
+			subGraph := simulateCascadingFailure(graph, initialRemove, alpha, maxDepth)
+			connIdx := calculateConnectivityIndex(subGraph)
+			giantSize := getGiantComponentSize(subGraph)
+			giantPct := float64(giantSize) / float64(totalNodes)
+
+			avgConnIdx += connIdx
+			avgGiantPct += giantPct
+		}
+
+		curve[s] = ResilienceCurvePoint{
+			RemovalRatio:      ratio,
+			ConnectivityIndex: avgConnIdx / float64(strategy.Iterations),
+			GiantComponentPct: avgGiantPct / float64(strategy.Iterations),
+		}
+	}
+
+	robustnessScore := calculateRobustnessScore(curve)
+	criticalThreshold := findCriticalThreshold(curve)
+
+	return &ResilienceResult{
+		AttackType:        strategy.AttackType,
+		CurvePoints:       curve,
+		RobustnessScore:   robustnessScore,
+		CriticalThreshold: criticalThreshold,
+		TotalNodes:        totalNodes,
+		Iterations:        strategy.Iterations,
+	}
+}
+
+func simulateCascadingFailure(graph *Graph, initialRemove []int, alpha float64, maxDepth int) *Graph {
+	currentGraph := removeNodes(graph, initialRemove)
+
+	removedSet := make(map[int]bool)
+	for _, id := range initialRemove {
+		removedSet[id] = true
+	}
+
+	for depth := 0; depth < maxDepth; depth++ {
+		newlyRemoved := []int{}
+
+		for nodeID := range currentGraph.Nodes {
+			degree := len(currentGraph.Adj[nodeID])
+			originalDegree := len(graph.Adj[nodeID])
+
+			if originalDegree > 0 && float64(degree)/float64(originalDegree) < alpha {
+				newlyRemoved = append(newlyRemoved, nodeID)
+			}
+		}
+
+		if len(newlyRemoved) == 0 {
+			break
+		}
+
+		for _, id := range newlyRemoved {
+			removedSet[id] = true
+		}
+
+		allRemoved := make([]int, 0, len(removedSet))
+		for id := range removedSet {
+			allRemoved = append(allRemoved, id)
+		}
+		currentGraph = removeNodes(graph, allRemoved)
+	}
+
+	return currentGraph
+}
+
+func analyzeCoordinatedAttack(graph *Graph, strategy AttackStrategy) *ResilienceResult {
+	totalNodes := len(graph.Nodes)
+	totalLinks := len(graph.Edges)
+	steps := strategy.Steps
+
+	curve := make([]ResilienceCurvePoint, steps+1)
+	curve[0] = ResilienceCurvePoint{
+		RemovalRatio:      0.0,
+		ConnectivityIndex: calculateConnectivityIndex(graph),
+		GiantComponentPct: 1.0,
+	}
+
+	nodeOrder := getNodeRemovalOrder(graph, AttackDegree)
+	linkOrder := getLinkRemovalOrder(graph, AttackLinkBetween)
+
+	for s := 1; s <= steps; s++ {
+		ratio := float64(s) / float64(steps)
+		nodeRemoveCount := int(math.Round(float64(totalNodes) * ratio * 0.6))
+		linkRemoveCount := int(math.Round(float64(totalLinks) * ratio * 0.4))
+
+		if nodeRemoveCount >= totalNodes || linkRemoveCount >= totalLinks {
+			curve[s] = ResilienceCurvePoint{
+				RemovalRatio:      ratio,
+				ConnectivityIndex: 0.0,
+				GiantComponentPct: 0.0,
+			}
+			continue
+		}
+
+		avgConnIdx := 0.0
+		avgGiantPct := 0.0
+
+		for iter := 0; iter < strategy.Iterations; iter++ {
+			var nodeRemoveIDs []int
+			var linkRemoveIDs []int
+
+			if iter == 0 {
+				nodeRemoveIDs = nodeOrder[:nodeRemoveCount]
+				linkRemoveIDs = linkOrder[:linkRemoveCount]
+			} else {
+				nodeRemoveIDs = pickRandomNodes(graph, nodeRemoveCount, iter)
+				linkRemoveIDs = pickRandomLinks(graph, linkRemoveCount, iter+1000)
+			}
+
+			subGraph := removeNodes(graph, nodeRemoveIDs)
+			subGraph = removeLinksByID(subGraph, linkRemoveIDs)
+
+			connIdx := calculateConnectivityIndex(subGraph)
+			giantSize := getGiantComponentSize(subGraph)
+			giantPct := float64(giantSize) / float64(totalNodes)
+
+			avgConnIdx += connIdx
+			avgGiantPct += giantPct
+		}
+
+		curve[s] = ResilienceCurvePoint{
+			RemovalRatio:      ratio,
+			ConnectivityIndex: avgConnIdx / float64(strategy.Iterations),
+			GiantComponentPct: avgGiantPct / float64(strategy.Iterations),
+		}
+	}
+
+	robustnessScore := calculateRobustnessScore(curve)
+	criticalThreshold := findCriticalThreshold(curve)
+
+	return &ResilienceResult{
+		AttackType:        strategy.AttackType,
+		CurvePoints:       curve,
+		RobustnessScore:   robustnessScore,
+		CriticalThreshold: criticalThreshold,
+		TotalNodes:        totalNodes,
+		Iterations:        strategy.Iterations,
+	}
+}
+
+func removeLinksByID(graph *Graph, removeIndices []int) *Graph {
+	removeSet := make(map[int]bool)
+	for _, idx := range removeIndices {
+		removeSet[idx] = true
+	}
+
+	newGraph := NewGraph()
+	for _, node := range graph.Nodes {
+		newGraph.AddNode(node)
+	}
+
+	for i, edge := range graph.Edges {
+		if !removeSet[i] {
+			newEdge := *edge
+			newGraph.Edges = append(newGraph.Edges, &newEdge)
+		}
+	}
+
+	newGraph.BuildAdjacencyList()
+	return newGraph
 }

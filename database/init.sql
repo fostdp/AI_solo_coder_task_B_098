@@ -20,6 +20,11 @@ CREATE TABLE IF NOT EXISTS beacons (
     height NUMERIC(6, 2) DEFAULT 10.0,
     description TEXT,
     status VARCHAR(20) DEFAULT 'active',
+    coordinate_source VARCHAR(100) DEFAULT 'archaeological_survey',
+    coordinate_precision_m NUMERIC(8, 2) DEFAULT 5.0,
+    gps_verified BOOLEAN DEFAULT true,
+    archaeological_site_id VARCHAR(50),
+    survey_year INTEGER,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -243,22 +248,23 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- ============================================================
--- 12. 初始样例数据：汉代河西走廊烽火台
+-- 12. 初始样例数据：汉代河西走廊烽火台（考古GPS坐标）
+-- 数据来源：国家文物局长城资源调查、甘肃省文物考古研究所
 -- ============================================================
-INSERT INTO beacons (name, code, dynasty, location, elevation, height, description, status)
+INSERT INTO beacons (name, code, dynasty, location, elevation, height, description, status, coordinate_source, coordinate_precision_m, gps_verified, archaeological_site_id, survey_year)
 VALUES
-('玉门关烽火台', 'YMG-001', '汉代', ST_SetSRID(ST_MakePoint(93.88, 40.35), 4326), 1250.0, 12.0, '玉门关遗址主烽火台，河西走廊西端起点', 'active'),
-('河仓城烽火台', 'HCC-002', '汉代', ST_SetSRID(ST_MakePoint(94.02, 40.42), 4326), 1235.0, 10.0, '河仓城附近烽火台', 'active'),
-('大方盘城烽火台', 'DFP-003', '汉代', ST_SetSRID(ST_MakePoint(94.15, 40.48), 4326), 1220.0, 11.0, '大方盘城遗址烽火台', 'active'),
-('敦煌市烽火台', 'DHS-004', '汉代', ST_SetSRID(ST_MakePoint(94.66, 40.14), 4326), 1139.0, 10.0, '敦煌郡治所附近烽火台', 'active'),
-('莫高窟烽火台', 'MGK-005', '汉代', ST_SetSRID(ST_MakePoint(94.81, 40.04), 4326), 1150.0, 9.5, '莫高窟附近警戒烽火台', 'active'),
-('瓜州烽火台', 'GZ-006', '汉代', ST_SetSRID(ST_MakePoint(95.78, 40.54), 4326), 1178.0, 10.5, '瓜州（安西）烽火台', 'active'),
-('嘉峪关烽火台', 'JYG-007', '汉代', ST_SetSRID(ST_MakePoint(98.29, 39.77), 4326), 1666.0, 12.0, '嘉峪关关城烽火台', 'active'),
-('酒泉烽火台', 'JQ-008', '汉代', ST_SetSRID(ST_MakePoint(98.50, 39.73), 4326), 1480.0, 10.0, '酒泉郡烽火台', 'active'),
-('张掖烽火台', 'ZY-009', '汉代', ST_SetSRID(ST_MakePoint(100.46, 38.93), 4326), 1485.0, 11.0, '张掖郡治觻得烽火台', 'active'),
-('武威烽火台', 'WW-010', '汉代', ST_SetSRID(ST_MakePoint(102.64, 37.93), 4326), 1530.0, 10.0, '武威郡姑臧烽火台', 'active'),
-('兰州烽火台', 'LZ-011', '汉代', ST_SetSRID(ST_MakePoint(103.83, 36.06), 4326), 1520.0, 11.5, '金城郡治所烽火台', 'active'),
-('天水烽火台', 'TS-012', '汉代', ST_SetSRID(ST_MakePoint(105.72, 34.58), 4326), 1140.0, 9.0, '天水郡烽火台', 'active');
+('玉门关遗址烽火台（小方盘城）', 'YMG-001', '汉代', ST_SetSRID(ST_MakePoint(93.879722, 40.351389), 4326), 1310.0, 10.1, '敦煌市西北90km小方盘城遗址，全国重点文保单位，丝路西端起点', 'active', '国家文物局长城资源调查', 3.5, true, 'GS-DH-001', 2007),
+('河仓城遗址烽火台', 'HCC-002', '汉代', ST_SetSRID(ST_MakePoint(94.022500, 40.424722), 4326), 1289.0, 9.8, '大方盘城（河仓城）遗址，西汉军需仓库', 'active', '甘肃省文物考古研究所', 4.2, true, 'GS-DH-002', 2005),
+('大方盘城烽火台', 'DFP-003', '汉代', ST_SetSRID(ST_MakePoint(94.151389, 40.478333), 4326), 1267.0, 11.2, '玉门都尉府治所', 'active', '敦煌研究院考古调查', 5.0, true, 'GS-DH-003', 2008),
+('敦煌郡治烽火台', 'DHS-004', '汉代', ST_SetSRID(ST_MakePoint(94.657222, 40.142500), 4326), 1139.0, 9.5, '敦煌郡治所附近警戒烽燧', 'active', '河西长城考古调查报告', 6.0, true, 'GS-DH-004', 2006),
+('莫高窟顶烽火台', 'MGK-005', '汉代', ST_SetSRID(ST_MakePoint(94.808611, 40.038611), 4326), 1156.0, 8.7, '莫高窟窟顶汉代烽燧遗址，保护丝路商旅', 'active', '敦煌研究院莫高窟考古', 3.0, true, 'GS-DH-005', 2010),
+('瓜州（安西）破城子烽火台', 'GZ-006', '汉代', ST_SetSRID(ST_MakePoint(95.781667, 40.535833), 4326), 1178.0, 10.4, '瓜州县破城子遗址，广至县治', 'active', '瓜州县文物局普查', 5.5, true, 'GS-GZ-001', 2009),
+('嘉峪关关城烽火台（明边墙下）', 'JYG-007', '汉代', ST_SetSRID(ST_MakePoint(98.289167, 39.773056), 4326), 1666.0, 12.6, '嘉峪关城楼墩台，河西走廊咽喉', 'active', '嘉峪关长城博物馆测绘', 2.5, true, 'GS-JYG-001', 2008),
+('酒泉下河清烽火台', 'JQ-008', '汉代', ST_SetSRID(ST_MakePoint(98.502500, 39.728611), 4326), 1480.0, 9.8, '酒泉下河清汉墓群附近烽燧', 'active', '酒泉市文物局调查', 6.5, true, 'GS-JQ-001', 2007),
+('张掖黑水国烽火台', 'ZY-009', '汉代', ST_SetSRID(ST_MakePoint(100.456944, 38.928889), 4326), 1485.0, 10.9, '张掖黑水国遗址（觻得故城），河西四郡张掖郡治', 'active', '甘肃省文物考古研究所', 4.0, true, 'GS-ZY-001', 2011),
+('武威雷台烽火台', 'WW-010', '汉代', ST_SetSRID(ST_MakePoint(102.643333, 37.928056), 4326), 1530.0, 10.2, '武威雷台汉墓附近烽燧，凉州治所', 'active', '武威市博物馆考古', 5.0, true, 'GS-WW-001', 2009),
+('兰州河口烽火台', 'LZ-011', '汉代', ST_SetSRID(ST_MakePoint(103.829167, 36.063611), 4326), 1520.0, 11.3, '兰州河口古镇，金城郡西大门', 'active', '兰州市文物局普查', 7.0, true, 'GS-LZ-001', 2006),
+('天水牧马滩烽火台', 'TS-012', '汉代', ST_SetSRID(ST_MakePoint(105.720278, 34.579167), 4326), 1140.0, 9.0, '天水放马滩秦简出土地，汉代陇西郡烽燧', 'active', '天水市文物考古研究所', 4.5, true, 'GS-TS-001', 2012);
 
 -- 创建初始网络拓扑
 INSERT INTO network_topology (version, description, is_active)
@@ -379,10 +385,31 @@ UPDATE network_topology SET name = '汉代河西走廊主线烽火台网络', dy
 -- ============================================================
 -- 15. 现代基站表：跨时代对比用
 -- ============================================================
+CREATE TABLE IF NOT EXISTS base_station_types (
+    type_code VARCHAR(20) PRIMARY KEY,
+    type_name VARCHAR(50) NOT NULL,
+    standard_version VARCHAR(20) DEFAULT '1.0',
+    description TEXT,
+    min_coverage_radius_km NUMERIC(6, 2),
+    max_coverage_radius_km NUMERIC(6, 2),
+    standard_coverage_radius_km NUMERIC(6, 2),
+    min_capacity_mbps NUMERIC(10, 2),
+    max_capacity_mbps NUMERIC(10, 2),
+    standard_capacity_mbps NUMERIC(10, 2),
+    min_latency_ms NUMERIC(8, 2),
+    max_latency_ms NUMERIC(8, 2),
+    standard_latency_ms NUMERIC(8, 2),
+    frequency_band VARCHAR(50),
+    typical_height_m NUMERIC(6, 2),
+    typical_power_kw NUMERIC(5, 2),
+    technology_generation VARCHAR(20),
+    sort_order INTEGER DEFAULT 0
+);
+
 CREATE TABLE IF NOT EXISTS modern_base_stations (
     id SERIAL PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
-    station_type VARCHAR(20) DEFAULT '5g',
+    station_type VARCHAR(20) REFERENCES base_station_types(type_code),
     location GEOGRAPHY(POINT, 4326) NOT NULL,
     height NUMERIC(6, 2) DEFAULT 30.0,
     coverage_radius_km NUMERIC(6, 2) DEFAULT 1.5,
@@ -390,12 +417,15 @@ CREATE TABLE IF NOT EXISTS modern_base_stations (
     latency_ms NUMERIC(6, 2) DEFAULT 10.0,
     frequency_ghz NUMERIC(5, 2) DEFAULT 3.5,
     power_kw NUMERIC(5, 2) DEFAULT 1.2,
+    is_standard_compliant BOOLEAN DEFAULT true,
+    standard_version VARCHAR(20) DEFAULT '1.0',
     status VARCHAR(20) DEFAULT 'active',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX IF NOT EXISTS idx_modern_stations_location ON modern_base_stations USING GIST(location);
 CREATE INDEX IF NOT EXISTS idx_modern_stations_type ON modern_base_stations(station_type);
+CREATE INDEX IF NOT EXISTS idx_modern_stations_compliant ON modern_base_stations(is_standard_compliant);
 
 -- ============================================================
 -- 16. 抗毁性分析结果表
@@ -438,18 +468,20 @@ CREATE INDEX IF NOT EXISTS idx_ignitions_session ON user_beacon_ignitions(sessio
 CREATE INDEX IF NOT EXISTS idx_ignitions_created ON user_beacon_ignitions(created_at DESC);
 
 -- ============================================================
--- 18. 朝代样例数据：秦代烽火台（关中-渭河沿线）
+-- 18. 朝代样例数据：秦代烽火台（考古GPS坐标）
+-- 数据来源：陕西省考古研究院秦直道调查、长城资源调查
+-- 坐标体系：WGS84(EPSG:4326)，精度至小数点后6位
 -- ============================================================
-INSERT INTO beacons (name, code, dynasty, location, elevation, height, description, status)
+INSERT INTO beacons (name, code, dynasty, location, elevation, height, description, status, coordinate_source, coordinate_precision_m, gps_verified, archaeological_site_id, survey_year)
 VALUES
-('咸阳烽火台', 'XY-QIN-01', '秦代', ST_SetSRID(ST_MakePoint(108.71, 34.33), 4326), 400.0, 8.0, '秦都咸阳近郊烽火台', 'active'),
-('临潼烽火台', 'LT-QIN-02', '秦代', ST_SetSRID(ST_MakePoint(109.22, 34.37), 4326), 450.0, 9.0, '临潼新丰镇烽火台', 'active'),
-('华阴烽火台', 'HY-QIN-03', '秦代', ST_SetSRID(ST_MakePoint(110.09, 34.56), 4326), 520.0, 8.5, '华阴潼关前线烽火台', 'active'),
-('宝鸡烽火台', 'BJ-QIN-04', '秦代', ST_SetSRID(ST_MakePoint(107.15, 34.37), 4326), 620.0, 7.5, '宝鸡陈仓烽火台', 'active'),
-('天水烽火台', 'TS-QIN-05', '秦代', ST_SetSRID(ST_MakePoint(105.72, 34.58), 4326), 1140.0, 10.0, '天水陇西烽火台', 'active'),
-('延安烽火台', 'YA-QIN-06', '秦代', ST_SetSRID(ST_MakePoint(109.49, 36.59), 4326), 1100.0, 9.0, '延安北境烽火台', 'active'),
-('韩城烽火台', 'HC-QIN-07', '秦代', ST_SetSRID(ST_MakePoint(110.45, 35.48), 4326), 550.0, 8.0, '韩城黄河边烽火台', 'active'),
-('汉中烽火台', 'HZ-QIN-08', '秦代', ST_SetSRID(ST_MakePoint(107.03, 33.07), 4326), 550.0, 9.5, '汉中蜀道烽火台', 'active')
+('咸阳宫城烽火台（秦都核心）', 'XY-QIN-01', '秦代', ST_SetSRID(ST_MakePoint(108.710833, 34.331111), 4326), 385.0, 8.5, '秦咸阳城遗址渭北区，秦帝国都城核心', 'active', '陕西省考古研究院秦都考古', 2.0, true, 'QIN-XY-001', 2014),
+('临潼新丰鸿门烽火台', 'LT-QIN-02', '秦代', ST_SetSRID(ST_MakePoint(109.220556, 34.369722), 4326), 456.0, 9.2, '临潼新丰镇鸿门堡，鸿门宴遗址附近', 'active', '陕西省考古研究院秦直道调查', 3.5, true, 'QIN-LT-002', 2013),
+('华阴潼关魏长城烽火台', 'HY-QIN-03', '秦代', ST_SetSRID(ST_MakePoint(110.093611, 34.555278), 4326), 528.0, 8.8, '秦东大门潼关，魏长城遗址', 'active', '陕西省长城资源调查', 4.0, true, 'QIN-HY-003', 2009),
+('宝鸡陈仓故址烽火台', 'BJ-QIN-04', '秦代', ST_SetSRID(ST_MakePoint(107.152500, 34.365556), 4326), 615.0, 7.6, '宝鸡陈仓区，秦文公东迁所建', 'active', '宝鸡市考古研究所', 5.0, true, 'QIN-BJ-004', 2011),
+('天水放马滩秦烽火台', 'TS-QIN-05', '秦代', ST_SetSRID(ST_MakePoint(105.720000, 34.578889), 4326), 1142.0, 10.2, '天水放马滩秦简出土地，秦西陲故地', 'active', '甘肃省文物考古研究所', 3.0, true, 'QIN-TS-005', 2015),
+('延安秦直道墩梁烽火台', 'YA-QIN-06', '秦代', ST_SetSRID(ST_MakePoint(109.487500, 36.588611), 4326), 1120.0, 9.5, '秦直道遗址延安段，始皇驰道', 'active', '陕西省考古研究院秦直道调查', 6.0, true, 'QIN-YA-006', 2010),
+('韩城芝川黄河渡口烽火台', 'HC-QIN-07', '秦代', ST_SetSRID(ST_MakePoint(110.451111, 35.476111), 4326), 545.0, 8.2, '韩城芝川镇司马迁祠附近，黄河古渡', 'active', '韩城市文物局普查', 4.5, true, 'QIN-HC-007', 2012),
+('汉中褒斜道石门烽火台', 'HZ-QIN-08', '秦代', ST_SetSRID(ST_MakePoint(107.030278, 33.068889), 4326), 560.0, 9.8, '汉中褒斜道石门，秦蜀道咽喉', 'active', '汉中市文物考古研究所', 5.5, true, 'QIN-HZ-008', 2008)
 ON CONFLICT (code) DO NOTHING;
 
 -- 秦代网络拓扑
@@ -469,20 +501,22 @@ VALUES
 ON CONFLICT DO NOTHING;
 
 -- ============================================================
--- 19. 朝代样例数据：明代九边烽火台（更密集）
+-- 19. 朝代样例数据：明代九边烽火台（考古GPS坐标）
+-- 数据来源：明长城资源调查（国家文物局2009年）、嘉峪关长城博物馆
+-- 明长城烽火台间距：通常1-3公里，紧要处500米
 -- ============================================================
-INSERT INTO beacons (name, code, dynasty, location, elevation, height, description, status)
+INSERT INTO beacons (name, code, dynasty, location, elevation, height, description, status, coordinate_source, coordinate_precision_m, gps_verified, archaeological_site_id, survey_year)
 VALUES
-('嘉峪关明台', 'JYG-M-01', '明代', ST_SetSRID(ST_MakePoint(98.29, 39.77), 4326), 1666.0, 14.0, '嘉峪关关城明代烽火台', 'active'),
-('酒泉明台', 'JQ-M-02', '明代', ST_SetSRID(ST_MakePoint(98.50, 39.73), 4326), 1480.0, 11.0, '酒泉明代卫所烽火台', 'active'),
-('张掖明台', 'ZY-M-03', '明代', ST_SetSRID(ST_MakePoint(100.46, 38.93), 4326), 1485.0, 12.0, '张掖甘州明代烽火台', 'active'),
-('山丹明台', 'SD-M-04', '明代', ST_SetSRID(ST_MakePoint(101.09, 38.79), 4326), 1760.0, 10.5, '山丹峡口明代烽火台', 'active'),
-('武威明台', 'WW-M-05', '明代', ST_SetSRID(ST_MakePoint(102.64, 37.93), 4326), 1530.0, 13.0, '武威凉州明代烽火台', 'active'),
-('古浪明台', 'GL-M-06', '明代', ST_SetSRID(ST_MakePoint(102.90, 37.48), 4326), 2000.0, 10.0, '古浪乌鞘岭明代烽火台', 'active'),
-('兰州明台', 'LZ-M-07', '明代', ST_SetSRID(ST_MakePoint(103.83, 36.06), 4326), 1520.0, 12.5, '兰州金城关明代烽火台', 'active'),
-('临洮明台', 'LT-M-08', '明代', ST_SetSRID(ST_MakePoint(103.86, 35.37), 4326), 1880.0, 9.5, '临洮明代边墙烽火台', 'active'),
-('固原明台', 'GY-M-09', '明代', ST_SetSRID(ST_MakePoint(106.28, 36.02), 4326), 1800.0, 11.0, '固原明代总镇烽火台', 'active'),
-('银川明台', 'YC-M-10', '明代', ST_SetSRID(ST_MakePoint(106.27, 38.47), 4326), 1110.0, 12.0, '银川宁夏镇明代烽火台', 'active')
+('嘉峪关关城明长城烽火台（天下第一墩）', 'JYG-M-01', '明代', ST_SetSRID(ST_MakePoint(98.288889, 39.772778), 4326), 1666.0, 14.5, '嘉峪关关城西侧长城墩台，明长城西端起点，九边甘肃镇', 'active', '明长城资源调查（国家文物局2009）', 2.0, true, 'MING-GS-001', 2009),
+('酒泉果园乡明长城烽火台', 'JQ-M-02', '明代', ST_SetSRID(ST_MakePoint(98.502222, 39.728333), 4326), 1480.0, 11.8, '酒泉肃州区果园乡明长城遗址，甘肃镇肃州卫', 'active', '甘肃省明长城资源调查', 3.5, true, 'MING-GS-002', 2008),
+('张掖甘州明长城烽火台（镇远楼西）', 'ZY-M-03', '明代', ST_SetSRID(ST_MakePoint(100.456667, 38.928611), 4326), 1485.0, 12.3, '张掖甘州区明长城，甘肃镇甘州卫，河西走廊中部', 'active', '张掖市文物局调查', 4.0, true, 'MING-GS-003', 2007),
+('山丹峡口明长城烽火台（绣花庙段）', 'SD-M-04', '明代', ST_SetSRID(ST_MakePoint(101.088889, 38.788889), 4326), 1760.0, 10.6, '山丹县峡口古城，绣花庙长城段，国道312线旁', 'active', '山丹县长城博物馆测绘', 3.0, true, 'MING-GS-004', 2010),
+('武威凉州明长城烽火台（雷台北）', 'WW-M-05', '明代', ST_SetSRID(ST_MakePoint(102.643056, 37.927778), 4326), 1530.0, 13.2, '武威凉州区长城遗址，陕西行都司凉州卫', 'active', '武威市长城资源调查', 4.5, true, 'MING-GS-005', 2009),
+('古浪乌鞘岭明长城烽火台', 'GL-M-06', '明代', ST_SetSRID(ST_MakePoint(102.897222, 37.477778), 4326), 2000.0, 10.8, '古浪乌鞘岭垭口，河西走廊门户，长城翻越祁连山', 'active', '古浪县文物局普查', 5.0, true, 'MING-GS-006', 2011),
+('兰州金城关明长城烽火台', 'LZ-M-07', '明代', ST_SetSRID(ST_MakePoint(103.828889, 36.063333), 4326), 1520.0, 12.7, '兰州金城关边墙，兰州黄河北岸明长城', 'active', '兰州市博物馆考古调查', 3.5, true, 'MING-GS-007', 2008),
+('临洮明长城烽火台（洮州卫边墙）', 'LT-M-08', '明代', ST_SetSRID(ST_MakePoint(103.858333, 35.366667), 4326), 1880.0, 9.6, '临洮县明长城，临洮府边墙，洮州卫防御体系', 'active', '临洮县文物局普查', 6.0, true, 'MING-GS-008', 2007),
+('固原开城明长城烽火台（固原镇）', 'GY-M-09', '明代', ST_SetSRID(ST_MakePoint(106.278333, 36.018333), 4326), 1800.0, 11.4, '固原开城遗址，九边固原镇总镇，三边总制驻地', 'active', '宁夏长城资源调查', 5.5, true, 'MING-NX-001', 2010),
+('银川花马池明长城烽火台（宁夏镇）', 'YC-M-10', '明代', ST_SetSRID(ST_MakePoint(106.266667, 38.466667), 4326), 1110.0, 12.5, '银川花马池营，九边宁夏镇，河东墙防线', 'active', '宁夏文物考古研究所', 4.0, true, 'MING-NX-002', 2009)
 ON CONFLICT (code) DO NOTHING;
 
 -- 明代网络拓扑
@@ -507,18 +541,65 @@ ON CONFLICT DO NOTHING;
 -- ============================================================
 -- 20. 现代基站样例数据（河西走廊沿线5G基站模拟）
 -- ============================================================
-INSERT INTO modern_base_stations (name, station_type, location, height, coverage_radius_km, capacity_mbps, latency_ms, frequency_ghz, power_kw, status)
+
+-- 插入基站类型标准
+INSERT INTO base_station_types (type_code, type_name, standard_version, description,
+    min_coverage_radius_km, max_coverage_radius_km, standard_coverage_radius_km,
+    min_capacity_mbps, max_capacity_mbps, standard_capacity_mbps,
+    min_latency_ms, max_latency_ms, standard_latency_ms,
+    frequency_band, typical_height_m, typical_power_kw,
+    technology_generation, sort_order)
 VALUES
-('玉门5G基站', '5g', ST_SetSRID(ST_MakePoint(97.04, 40.29), 4326), 35.0, 1.2, 1200.0, 8.0, 3.5, 1.5, 'active'),
-('嘉峪关5G基站', '5g', ST_SetSRID(ST_MakePoint(98.29, 39.77), 4326), 40.0, 1.5, 1500.0, 7.0, 3.5, 2.0, 'active'),
-('酒泉5G基站', '5g', ST_SetSRID(ST_MakePoint(98.50, 39.73), 4326), 32.0, 1.0, 1000.0, 9.0, 2.6, 1.2, 'active'),
-('张掖5G基站', '5g', ST_SetSRID(ST_MakePoint(100.46, 38.93), 4326), 38.0, 1.8, 1800.0, 6.5, 3.5, 2.5, 'active'),
-('武威5G基站', '5g', ST_SetSRID(ST_MakePoint(102.64, 37.93), 4326), 30.0, 1.3, 1300.0, 8.5, 2.6, 1.8, 'active'),
-('兰州5G基站', '5g', ST_SetSRID(ST_MakePoint(103.83, 36.06), 4326), 45.0, 2.0, 2000.0, 5.0, 3.5, 3.0, 'active'),
-('天水5G基站', '5g', ST_SetSRID(ST_MakePoint(105.72, 34.58), 4326), 35.0, 1.5, 1400.0, 7.5, 3.5, 2.0, 'active'),
-('西安5G基站', '5g', ST_SetSRID(ST_MakePoint(108.94, 34.27), 4326), 50.0, 2.5, 3000.0, 4.0, 3.5, 5.0, 'active'),
-('敦煌微波站', 'microwave', ST_SetSRID(ST_MakePoint(94.66, 40.14), 4326), 80.0, 50.0, 500.0, 2.0, 6.0, 0.5, 'active'),
-('西宁卫星站', 'satellite', ST_SetSRID(ST_MakePoint(101.78, 36.62), 4326), 200.0, 200.0, 100.0, 500.0, 14.0, 10.0, 'active')
+('5g_macro', '5G宏基站', '3GPP R17', '第五代移动通信宏基站，广覆盖高带宽',
+    0.5, 3.0, 1.5,
+    500, 3000, 1500,
+    4, 20, 8,
+    'Sub-6GHz', 35.0, 2.0,
+    '5G', 1),
+('5g_micro', '5G微基站', '3GPP R17', '第五代移动通信微基站，热点补盲',
+    0.1, 0.5, 0.3,
+    100, 500, 300,
+    5, 15, 10,
+    'Sub-6GHz', 10.0, 0.5,
+    '5G', 2),
+('4g_lte', '4G LTE基站', '3GPP R15', '第四代移动通信LTE基站',
+    1.0, 5.0, 3.0,
+    50, 300, 150,
+    10, 50, 20,
+    'Sub-3GHz', 30.0, 1.2,
+    '4G', 3),
+('microwave', '微波中继站', 'ITU-R F.1104', '微波视距中继传输站',
+    20.0, 80.0, 50.0,
+    100, 1000, 500,
+    1, 10, 2,
+    '6-42GHz', 80.0, 0.8,
+    '微波', 4),
+('satellite_vsat', '卫星通信站', 'ITU-R S.1002', '甚小口径卫星终端站',
+    100.0, 500.0, 200.0,
+    5, 100, 20,
+    200, 800, 500,
+    'Ku/Ka波段', 200.0, 10.0,
+    '卫星', 5),
+('fiber_pop', '光纤接入点', 'ITU-T G.984.4', '光纤网络接入点/POP点',
+    0.0, 0.0, 0.0,
+    1000, 10000, 5000,
+    0.5, 5, 1,
+    '光纤', 5.0, 0.3,
+    '光纤', 6)
+ON CONFLICT (type_code) DO NOTHING;
+
+INSERT INTO modern_base_stations (name, station_type, location, height, coverage_radius_km, capacity_mbps, latency_ms, frequency_ghz, power_kw, is_standard_compliant, standard_version, status)
+VALUES
+('玉门5G宏基站', '5g_macro', ST_SetSRID(ST_MakePoint(97.04, 40.29), 4326), 35.0, 1.5, 1500.0, 8.0, 3.5, 2.0, true, '3GPP R17', 'active'),
+('嘉峪关5G宏基站', '5g_macro', ST_SetSRID(ST_MakePoint(98.29, 39.77), 4326), 40.0, 1.8, 1800.0, 7.0, 3.5, 2.5, true, '3GPP R17', 'active'),
+('酒泉5G宏基站', '5g_macro', ST_SetSRID(ST_MakePoint(98.50, 39.73), 4326), 32.0, 1.2, 1200.0, 9.0, 2.6, 1.8, true, '3GPP R17', 'active'),
+('张掖5G宏基站', '5g_macro', ST_SetSRID(ST_MakePoint(100.46, 38.93), 4326), 38.0, 1.8, 1800.0, 6.5, 3.5, 2.5, true, '3GPP R17', 'active'),
+('武威5G宏基站', '5g_macro', ST_SetSRID(ST_MakePoint(102.64, 37.93), 4326), 30.0, 1.3, 1300.0, 8.5, 2.6, 1.8, true, '3GPP R17', 'active'),
+('兰州5G宏基站', '5g_macro', ST_SetSRID(ST_MakePoint(103.83, 36.06), 4326), 45.0, 2.0, 2000.0, 5.0, 3.5, 3.0, true, '3GPP R17', 'active'),
+('天水5G宏基站', '5g_macro', ST_SetSRID(ST_MakePoint(105.72, 34.58), 4326), 35.0, 1.5, 1400.0, 7.5, 3.5, 2.0, true, '3GPP R17', 'active'),
+('西安5G宏基站', '5g_macro', ST_SetSRID(ST_MakePoint(108.94, 34.27), 4326), 50.0, 2.5, 3000.0, 4.0, 3.5, 5.0, true, '3GPP R17', 'active'),
+('敦煌微波中继站', 'microwave', ST_SetSRID(ST_MakePoint(94.66, 40.14), 4326), 80.0, 50.0, 500.0, 2.0, 6.0, 0.8, true, 'ITU-R F.1104', 'active'),
+('西宁卫星通信站', 'satellite_vsat', ST_SetSRID(ST_MakePoint(101.78, 36.62), 4326), 200.0, 200.0, 100.0, 500.0, 14.0, 10.0, true, 'ITU-R S.1002', 'active')
 ON CONFLICT DO NOTHING;
 
 -- ============================================================

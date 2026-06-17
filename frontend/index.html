@@ -160,10 +160,22 @@
                         <div class="control-group">
                             <label>攻击方式</label>
                             <select id="attack-type-select">
-                                <option value="random">随机攻击</option>
-                                <option value="degree">度优先攻击</option>
-                                <option value="betweenness">介数优先攻击</option>
-                                <option value="critical">关键节点攻击</option>
+                                <optgroup label="节点攻击">
+                                    <option value="random">随机攻击</option>
+                                    <option value="degree">度优先攻击</option>
+                                    <option value="betweenness">介数优先攻击</option>
+                                    <option value="critical">关键节点攻击</option>
+                                </optgroup>
+                                <optgroup label="链路攻击">
+                                    <option value="link_random">随机链路攻击</option>
+                                    <option value="link_critical">关键链路攻击</option>
+                                    <option value="link_betweenness">链路介数优先</option>
+                                    <option value="link_reliability">低可靠性优先</option>
+                                </optgroup>
+                                <optgroup label="高级攻击">
+                                    <option value="cascading">级联故障</option>
+                                    <option value="coordinated">协同攻击</option>
+                                </optgroup>
                             </select>
                         </div>
                         <div class="control-group">
@@ -186,6 +198,14 @@
                         🔥 虚拟点燃体验 <span class="toggle-icon">▼</span>
                     </h3>
                     <div id="ignition-panel" class="panel-content">
+                        <div class="quick-ignite-section">
+                            <button class="btn btn-primary btn-quick-ignite" id="quick-ignite-btn">
+                                ⚡ 一键点燃（最近烽火台）
+                            </button>
+                            <p class="text-muted quick-ignite-hint" style="font-size: 11px; margin-top: 6px;">
+                                提示：双击地图上的烽火台可快速点燃
+                            </p>
+                        </div>
                         <div class="control-group">
                             <label>选择点燃烽火台</label>
                             <select id="ignition-beacon-select">
